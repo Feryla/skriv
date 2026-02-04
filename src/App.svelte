@@ -3,6 +3,8 @@
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { open, save } from '@tauri-apps/plugin-dialog';
   import { readTextFile, writeTextFile, rename } from '@tauri-apps/plugin-fs';
+  import { check } from '@tauri-apps/plugin-updater';
+  import { relaunch } from '@tauri-apps/plugin-process';
   import type * as Monaco from 'monaco-editor';
   import {
     type Tab,
@@ -27,6 +29,10 @@
   let currentEditor: Monaco.editor.IStandaloneCodeEditor | null = $state(null);
   let editingTabId: string | null = $state(null);
 
+  let updateAvailable: Awaited<ReturnType<typeof check>> | null = $state(null);
+  let updateDownloading = $state(false);
+  let updateProgress = $state('');
+
   const activeTab = $derived(state.tabs.find((t) => t.id === state.activeTabId));
 
   $effect(() => {
@@ -47,6 +53,9 @@
     }
 
     loaded = true;
+
+    // Check for updates (fire-and-forget)
+    checkForUpdates();
 
     // Save session periodically
     const interval = setInterval(() => saveSession(state), 5000);
@@ -219,6 +228,48 @@
     return tab.content !== tab.savedContent;
   }
 
+  async function checkForUpdates() {
+    try {
+      const update = await check();
+      if (update) {
+        updateAvailable = update;
+      }
+    } catch (e) {
+      console.error('Failed to check for updates:', e);
+    }
+  }
+
+  async function installUpdate() {
+    if (!updateAvailable) return;
+    updateDownloading = true;
+    try {
+      let downloaded = 0;
+      let total = 0;
+      await updateAvailable.downloadAndInstall((event) => {
+        if (event.event === 'Started' && event.data.contentLength) {
+          total = event.data.contentLength;
+          updateProgress = '0%';
+        } else if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength;
+          if (total > 0) {
+            updateProgress = `${Math.round((downloaded / total) * 100)}%`;
+          }
+        } else if (event.event === 'Finished') {
+          updateProgress = 'Done';
+        }
+      });
+      await relaunch();
+    } catch (e) {
+      console.error('Failed to install update:', e);
+      updateDownloading = false;
+      updateProgress = '';
+    }
+  }
+
+  function dismissUpdate() {
+    updateAvailable = null;
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
@@ -353,6 +404,18 @@
       {/if}
     </button>
   </div>
+
+  {#if updateAvailable}
+    <div class="update-bar">
+      {#if updateDownloading}
+        <span>Downloading update... {updateProgress}</span>
+      {:else}
+        <span>Update {updateAvailable.version} available</span>
+        <button class="update-btn" onclick={installUpdate}>Update now</button>
+        <button class="update-dismiss-btn" onclick={dismissUpdate}>Dismiss</button>
+      {/if}
+    </div>
+  {/if}
 
   <div class="tabs">
     {#each state.tabs as tab (tab.id)}
@@ -591,6 +654,43 @@
 
   .new-tab-btn:hover {
     opacity: 1;
+  }
+
+  .update-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #0366d6;
+    color: #fff;
+    font-size: 13px;
+  }
+
+  .update-btn {
+    padding: 2px 10px;
+    border: 1px solid #fff;
+    background: transparent;
+    color: #fff;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  .update-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .update-dismiss-btn {
+    padding: 2px 10px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  .update-dismiss-btn:hover {
+    color: #fff;
   }
 
   .editor-container {

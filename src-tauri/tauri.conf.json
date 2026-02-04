@@ -32,6 +32,15 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU2RDlCRTk3NEMzMDFDQ0UKUldUT0hEQk1sNzdaVmxRR1M5aXI0MzFBa0JxdGdhUkxpa2l2L0hnTE5uUVRibHFoUGdBUm9KK04K",
+      "endpoints": [
+        "https://github.com/Feryla/skriv/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

@@ -30,6 +30,8 @@
     "dialog:default",
     "dialog:allow-open",
     "dialog:allow-save",
-    "core:window:allow-set-title"
+    "core:window:allow-set-title",
+    "updater:default",
+    "process:allow-restart"
   ]
 }
