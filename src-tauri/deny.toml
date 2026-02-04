@@ -1,0 +1,41 @@
+# cargo-deny configuration
+# Run with: cargo deny check
+# Install with: cargo install cargo-deny
+
+[advisories]
+# Lint level for crates with known security vulnerabilities
+vulnerability = "deny"
+# Lint level for crates that have been yanked
+yanked = "warn"
+
+[licenses]
+# Confidence threshold for license detection
+confidence-threshold = 0.8
+# Allow these licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "MPL-2.0",
+    "OpenSSL",
+]
+# Some crates don't have machine-readable license info
+exceptions = []
+
+[bans]
+# Lint level for multiple versions of the same crate
+multiple-versions = "warn"
+# Lint level for wildcard dependencies
+wildcards = "allow"
+
+[sources]
+# Lint level for crates not from crates.io
+unknown-registry = "warn"
+unknown-git = "warn"
+# Allowable git hosts
+allow-git = []
