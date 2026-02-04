@@ -106,7 +106,7 @@ export function createEditor(
     language,
     theme: darkMode ? 'simple-dark' : 'simple-light',
     automaticLayout: true,
-    minimap: { enabled: true },
+    minimap: { enabled: false },
     fontSize: 14,
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
     lineNumbers: 'on',
