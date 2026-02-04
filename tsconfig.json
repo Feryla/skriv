@@ -8,8 +8,7 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "noEmit": true,
-    "skipLibCheck": true,
-    "types": ["svelte"]
+    "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*.ts"]
 }

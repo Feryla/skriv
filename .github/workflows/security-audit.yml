@@ -98,6 +98,9 @@ jobs:
       - name: TypeScript type check
         run: npx tsc --noEmit
 
+      - name: Vite build
+        run: npm run build
+
       - name: Clippy
         working-directory: src-tauri
         run: cargo clippy -- -D warnings
