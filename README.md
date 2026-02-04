@@ -14,6 +14,16 @@ A lightweight desktop text and code editor.
 
 Grab the latest release from [GitHub Releases](https://github.com/Feryla/skriv/releases).
 
+## macOS
+
+The app is not signed with an Apple Developer certificate. macOS will block it on first launch. To fix this, run:
+
+```bash
+xattr -cr /Applications/skriv.app
+```
+
+Then open the app normally.
+
 ## Development
 
 Prerequisites: Node 20+, Rust
