@@ -1,0 +1,25 @@
+{
+  "name": "skriv",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@tauri-apps/cli": "^2.3.1",
+    "svelte": "^5.19.9",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vite-plugin-monaco-editor": "^1.1.0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/plugin-dialog": "^2.2.0",
+    "@tauri-apps/plugin-fs": "^2.2.0",
+    "monaco-editor": "^0.55.1"
+  }
+}
