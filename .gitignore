@@ -1,2 +1,5 @@
 node_modules/
 dist/
+
+# SBOM output files
+*.cdx.json

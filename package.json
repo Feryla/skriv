@@ -9,7 +9,10 @@
     "tauri": "tauri",
     "audit": "npm audit && cd src-tauri && cargo audit",
     "audit:js": "npm audit",
-    "audit:rust": "cd src-tauri && cargo audit"
+    "audit:rust": "cd src-tauri && cargo audit",
+    "sbom": "npm run sbom:js && npm run sbom:rust",
+    "sbom:js": "npx @cyclonedx/cyclonedx-npm --output-file sbom-js.cdx.json",
+    "sbom:rust": "cd src-tauri && cargo cyclonedx --format json"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.3",

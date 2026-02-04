@@ -64,3 +64,39 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
           args: ${{ matrix.args }}
+
+  sbom:
+    name: Generate SBOM
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Generate JS SBOM (CycloneDX)
+        run: npx @cyclonedx/cyclonedx-npm --output-file sbom-js.cdx.json
+
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx
+
+      - name: Generate Rust SBOM (CycloneDX)
+        working-directory: src-tauri
+        run: cargo cyclonedx --format json && mv bom.json ../sbom-rust.cdx.json
+
+      - name: Upload SBOMs to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.ref_name }} sbom-js.cdx.json sbom-rust.cdx.json --clobber
