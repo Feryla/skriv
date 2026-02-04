@@ -3,14 +3,12 @@
 # Install with: cargo install cargo-deny
 
 [advisories]
-# Lint level for crates with known security vulnerabilities
-vulnerability = "deny"
+version = 2
 # Lint level for crates that have been yanked
 yanked = "warn"
 
 [licenses]
-# Confidence threshold for license detection
-confidence-threshold = 0.8
+version = 2
 # Allow these licenses
 allow = [
     "MIT",
@@ -24,8 +22,6 @@ allow = [
     "MPL-2.0",
     "OpenSSL",
 ]
-# Some crates don't have machine-readable license info
-exceptions = []
 
 [bans]
 # Lint level for multiple versions of the same crate
