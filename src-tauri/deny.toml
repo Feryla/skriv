@@ -6,6 +6,9 @@
 version = 2
 # Lint level for crates that have been yanked
 yanked = "warn"
+# Warn on unmaintained crates rather than deny, since Tauri 2 pulls in
+# GTK3 and other unmaintained transitive dependencies we can't control.
+unmaintained = "workspace"
 
 [licenses]
 version = 2
@@ -13,6 +16,7 @@ version = 2
 allow = [
     "MIT",
     "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
@@ -21,6 +25,7 @@ allow = [
     "Zlib",
     "MPL-2.0",
     "OpenSSL",
+    "CDLA-Permissive-2.0",
 ]
 
 [bans]
