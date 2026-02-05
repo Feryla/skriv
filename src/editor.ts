@@ -2,8 +2,12 @@ import * as monaco from 'monaco-editor';
 
 // Language mapping based on file extension
 export function getLanguageFromFilename(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  
+  const name = filename.split('/').pop()?.toLowerCase() || '';
+  const ext = name.split('.').pop()?.toLowerCase();
+
+  // Dotenv files: .env, .env.local, .env.production, etc.
+  if (name === '.env' || name.startsWith('.env.')) return 'ini';
+
   const languageMap: Record<string, string> = {
     // JavaScript/TypeScript
     'js': 'javascript',
