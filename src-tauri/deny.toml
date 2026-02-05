@@ -1,0 +1,42 @@
+# cargo-deny configuration
+# Run with: cargo deny check
+# Install with: cargo install cargo-deny
+
+[advisories]
+version = 2
+# Lint level for crates that have been yanked
+yanked = "warn"
+# Warn on unmaintained crates rather than deny, since Tauri 2 pulls in
+# GTK3 and other unmaintained transitive dependencies we can't control.
+unmaintained = "workspace"
+
+[licenses]
+version = 2
+# Allow these licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "MPL-2.0",
+    "OpenSSL",
+    "CDLA-Permissive-2.0",
+]
+
+[bans]
+# Lint level for multiple versions of the same crate
+multiple-versions = "warn"
+# Lint level for wildcard dependencies
+wildcards = "allow"
+
+[sources]
+# Lint level for crates not from crates.io
+unknown-registry = "warn"
+unknown-git = "warn"
+# Allowable git hosts
+allow-git = []
