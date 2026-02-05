@@ -60,12 +60,14 @@
     // Save session periodically
     const interval = setInterval(() => saveSession(state), 5000);
 
-    // Save on close
-    window.addEventListener('beforeunload', () => saveSession(state));
+    // Save on close - use Tauri's event which properly awaits async operations
+    const unlisten = await getCurrentWindow().onCloseRequested(async () => {
+      await saveSession(state);
+    });
 
     return () => {
       clearInterval(interval);
-      saveSession(state);
+      unlisten();
     };
   });
 
@@ -89,29 +91,6 @@
   async function openFile() {
     const selected = await open({
       multiple: true,
-      filters: [
-        {
-          name: 'Text Files',
-          extensions: [
-            'txt',
-            'md',
-            'js',
-            'ts',
-            'jsx',
-            'tsx',
-            'html',
-            'css',
-            'json',
-            'xml',
-            'svg',
-            'java',
-            'sql',
-            'svelte',
-            'vue',
-          ],
-        },
-        { name: 'All Files', extensions: ['*'] },
-      ],
     });
 
     if (selected) {
