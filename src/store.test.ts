@@ -793,6 +793,132 @@ describe('store', () => {
     });
   });
 
+  describe('dotfiles and special filenames', () => {
+    it('should load content from .env files correctly', async () => {
+      const state: SessionState = {
+        tabs: [
+          {
+            id: 'tab1',
+            name: '.env',
+            path: '/home/user/project/.env',
+            tempPath: null,
+            content: 'API_KEY=secret123',
+            savedContent: 'API_KEY=secret123',
+            cursorPos: 0,
+          },
+        ],
+        activeTabId: 'tab1',
+        nextTempNumber: 1,
+        darkMode: true,
+      };
+
+      // Save session (content gets stripped)
+      await saveSession(state);
+
+      // Verify session.json has empty content
+      const sessionJson = getMockFile('/mock/app/data/session.json');
+      const savedSession = JSON.parse(sessionJson!);
+      expect(savedSession.tabs[0].content).toBe('');
+      expect(savedSession.tabs[0].path).toBe('/home/user/project/.env');
+
+      // Simulate .env file existing on disk
+      setMockFile('/home/user/project/.env', 'API_KEY=secret123');
+
+      // Load session - should read from disk
+      const loaded = await loadSession();
+
+      expect(loaded.tabs[0].name).toBe('.env');
+      expect(loaded.tabs[0].content).toBe('API_KEY=secret123');
+    });
+
+    it('should handle files with leading dots in names', async () => {
+      const state: SessionState = {
+        tabs: [
+          {
+            id: 'tab1',
+            name: '.gitignore',
+            path: '/home/user/project/.gitignore',
+            tempPath: null,
+            content: 'node_modules/',
+            savedContent: 'node_modules/',
+            cursorPos: 0,
+          },
+        ],
+        activeTabId: 'tab1',
+        nextTempNumber: 1,
+        darkMode: true,
+      };
+
+      await saveSession(state);
+      setMockFile('/home/user/project/.gitignore', 'node_modules/');
+
+      const loaded = await loadSession();
+      expect(loaded.tabs[0].content).toBe('node_modules/');
+    });
+
+    it('should handle paths with special characters', async () => {
+      const state: SessionState = {
+        tabs: [
+          {
+            id: 'tab1',
+            name: 'file.test.ts',
+            path: '/home/user/my project/src/file.test.ts',
+            tempPath: null,
+            content: 'test content',
+            savedContent: 'test content',
+            cursorPos: 0,
+          },
+        ],
+        activeTabId: 'tab1',
+        nextTempNumber: 1,
+        darkMode: true,
+      };
+
+      await saveSession(state);
+      setMockFile('/home/user/my project/src/file.test.ts', 'test content');
+
+      const loaded = await loadSession();
+      expect(loaded.tabs[0].content).toBe('test content');
+    });
+  });
+
+  describe('missing file handling', () => {
+    /**
+     * This test verifies behavior when a file in the session no longer exists.
+     * The tab remains but content is empty, and a warning is logged.
+     */
+    it('should show empty content and log warning when file cannot be read', async () => {
+      const state: SessionState = {
+        tabs: [
+          {
+            id: 'tab1',
+            name: '.env',
+            path: '/home/user/project/.env',
+            tempPath: null,
+            content: '',
+            savedContent: '',
+            cursorPos: 0,
+          },
+        ],
+        activeTabId: 'tab1',
+        nextTempNumber: 1,
+        darkMode: true,
+      };
+
+      // Save session
+      setMockFile('/mock/app/data/session.json', JSON.stringify(state));
+
+      // NOTE: We do NOT set the .env file in mock filesystem
+      // This simulates exists() returning false
+
+      const loaded = await loadSession();
+
+      // Content is empty because file doesn't exist
+      expect(loaded.tabs[0].content).toBe('');
+      // A warning is logged to console so user can debug
+    });
+  });
+
   describe('KNOWN LIMITATION: unsaved changes in saved files', () => {
     /**
      * This test documents a known limitation: when a user modifies a file

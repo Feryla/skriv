@@ -41,25 +41,16 @@ export async function loadSession(): Promise<SessionState> {
       const content = await readTextFile(sessionPath);
       const session = JSON.parse(content) as SessionState;
       
-      // Load content for temp files
+      // Load content for tabs
       for (const tab of session.tabs) {
-        if (tab.tempPath) {
+        const pathToRead = tab.tempPath || tab.path;
+        if (pathToRead) {
           try {
-            if (await exists(tab.tempPath)) {
-              tab.content = await readTextFile(tab.tempPath);
-              tab.savedContent = tab.content;
-            }
-          } catch {
-            tab.content = '';
-            tab.savedContent = '';
-          }
-        } else if (tab.path) {
-          try {
-            if (await exists(tab.path)) {
-              tab.content = await readTextFile(tab.path);
-              tab.savedContent = tab.content;
-            }
-          } catch {
+            tab.content = await readTextFile(pathToRead);
+            tab.savedContent = tab.content;
+          } catch (e) {
+            // File might not exist or be unreadable - that's ok, keep empty content
+            console.warn(`Could not load file for tab "${tab.name}":`, e);
             tab.content = '';
             tab.savedContent = '';
           }
