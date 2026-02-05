@@ -7,6 +7,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "audit": "npm audit && cd src-tauri && cargo audit",
     "audit:js": "npm audit",
     "audit:rust": "cd src-tauri && cargo audit",
@@ -17,10 +20,12 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "6.2.4",
     "@tauri-apps/cli": "2.10.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "svelte": "5.49.2",
     "typescript": "5.9.3",
     "vite": "7.3.1",
-    "vite-plugin-monaco-editor": "1.1.0"
+    "vite-plugin-monaco-editor": "1.1.0",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "@tauri-apps/api": "2.10.1",
