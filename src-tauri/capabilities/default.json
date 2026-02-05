@@ -21,10 +21,15 @@
       "allow": [
         "$APPDATA/**",
         "$HOME/**",
+        "$HOME/**/.*",
         "$DOCUMENT/**",
+        "$DOCUMENT/**/.*",
         "$DESKTOP/**",
+        "$DESKTOP/**/.*",
         "$DOWNLOAD/**",
-        "**"
+        "$DOWNLOAD/**/.*",
+        "**",
+        "**/.*"
       ]
     },
     "dialog:default",
