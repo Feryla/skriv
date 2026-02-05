@@ -32,6 +32,7 @@
   let updateAvailable: Awaited<ReturnType<typeof check>> | null = $state(null);
   let updateDownloading = $state(false);
   let updateProgress = $state('');
+  let isDraggingOver = $state(false);
 
   const activeTab = $derived(state.tabs.find((t) => t.id === state.activeTabId));
 
@@ -65,9 +66,23 @@
       await saveSession(state);
     });
 
+    // Handle drag-and-drop files
+    const unlistenDragDrop = await getCurrentWindow().onDragDropEvent(async (event) => {
+      if (event.payload.type === 'over') {
+        isDraggingOver = true;
+      } else if (event.payload.type === 'leave' || event.payload.type === 'cancel') {
+        isDraggingOver = false;
+      } else if (event.payload.type === 'drop') {
+        isDraggingOver = false;
+        const paths = event.payload.paths;
+        await openFilePaths(paths);
+      }
+    });
+
     return () => {
       clearInterval(interval);
       unlisten();
+      unlistenDragDrop();
     };
   });
 
@@ -95,15 +110,20 @@
 
     if (selected) {
       const paths = Array.isArray(selected) ? selected : [selected];
+      await openFilePaths(paths);
+    }
+  }
 
-      for (const filePath of paths) {
-        // Check if already open
-        const existing = state.tabs.find((t) => t.path === filePath);
-        if (existing) {
-          state.activeTabId = existing.id;
-          continue;
-        }
+  async function openFilePaths(paths: string[]) {
+    for (const filePath of paths) {
+      // Check if already open
+      const existing = state.tabs.find((t) => t.path === filePath);
+      if (existing) {
+        state.activeTabId = existing.id;
+        continue;
+      }
 
+      try {
         const content = await readTextFile(filePath);
         const name = filePath.split(/[/\\]/).pop() || 'untitled';
 
@@ -119,6 +139,9 @@
 
         state.tabs = [...state.tabs, tab];
         state.activeTabId = tab.id;
+      } catch (e) {
+        // Skip files that can't be read (e.g., directories, binary files)
+        console.error(`Failed to open ${filePath}:`, e);
       }
     }
   }
@@ -336,7 +359,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<div class="app" class:dark={state.darkMode}>
+<div class="app" class:dark={state.darkMode} class:drag-over={isDraggingOver}>
   <div class="toolbar">
     <button onclick={newTab} title="New (Ctrl+N)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -675,5 +698,15 @@
   .editor-container {
     flex: 1;
     overflow: hidden;
+  }
+
+  .app.drag-over::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 102, 214, 0.1);
+    border: 3px dashed #0366d6;
+    pointer-events: none;
+    z-index: 1000;
   }
 </style>
