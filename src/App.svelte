@@ -43,6 +43,15 @@
     getCurrentWindow().setTitle(title);
   });
 
+  // Debounced auto-save: saves 1s after any state change
+  $effect(() => {
+    // Read reactive state to establish dependency tracking
+    const _ = JSON.stringify(state);
+    if (!loaded) return;
+    const timeout = setTimeout(() => saveSession(state), 500);
+    return () => clearTimeout(timeout);
+  });
+
   onMount(async () => {
     state = await loadSession();
 
@@ -57,9 +66,6 @@
 
     // Check for updates (fire-and-forget)
     checkForUpdates();
-
-    // Save session periodically
-    const interval = setInterval(() => saveSession(state), 5000);
 
     // Save on close - use Tauri's event which properly awaits async operations
     const unlisten = await getCurrentWindow().onCloseRequested(async () => {
@@ -80,7 +86,6 @@
     });
 
     return () => {
-      clearInterval(interval);
       unlisten();
       unlistenDragDrop();
     };
