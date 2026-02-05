@@ -94,7 +94,7 @@ jobs:
 
       - name: Generate Rust SBOM (CycloneDX)
         working-directory: src-tauri
-        run: cargo cyclonedx --format json && mv bom.json ../sbom-rust.cdx.json
+        run: cargo cyclonedx --format json -o ../sbom-rust.cdx.json
 
       - name: Upload SBOMs to release
         env:
