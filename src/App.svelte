@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { open, save } from '@tauri-apps/plugin-dialog';
   import { readTextFile, writeTextFile, rename } from '@tauri-apps/plugin-fs';
@@ -16,6 +16,7 @@
     generateTabId,
   } from './store';
   import Editor from './Editor.svelte';
+  import TabSwitcher from './TabSwitcher.svelte';
   import { formatDocument, setEditorLanguage } from './editor';
 
   let state: SessionState = $state({
@@ -34,7 +35,44 @@
   let updateProgress = $state('');
   let isDraggingOver = $state(false);
 
+  // MRU tab switching state
+  let mruOrder: string[] = $state([]);
+  let switcherOpen = $state(false);
+  let switcherIndex = $state(0);
+
   const activeTab = $derived(state.tabs.find((t) => t.id === state.activeTabId));
+
+  // Tabs ordered by MRU for the switcher
+  const switcherTabs = $derived(
+    mruOrder
+      .map((id) => state.tabs.find((t) => t.id === id))
+      .filter((t): t is Tab => t !== undefined),
+  );
+
+  // Track active tab in MRU order (only when switcher is closed)
+  $effect(() => {
+    const activeId = state.activeTabId;
+    const isOpen = switcherOpen;
+    if (activeId && !isOpen) {
+      const current = untrack(() => mruOrder);
+      mruOrder = [activeId, ...current.filter((id) => id !== activeId)];
+    }
+  });
+
+  // Keep MRU in sync with actual tabs (remove stale, add missing)
+  $effect(() => {
+    const tabIds = new Set(state.tabs.map((t) => t.id));
+    const current = untrack(() => mruOrder);
+    const cleaned = current.filter((id) => tabIds.has(id));
+    for (const tab of state.tabs) {
+      if (!cleaned.includes(tab.id)) {
+        cleaned.push(tab.id);
+      }
+    }
+    if (cleaned.length !== current.length || cleaned.some((id, i) => id !== current[i])) {
+      mruOrder = cleaned;
+    }
+  });
 
   $effect(() => {
     const title = activeTab
@@ -278,6 +316,33 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    // Tab switcher: Ctrl+Tab / Ctrl+Shift+Tab
+    if (e.ctrlKey && e.key === 'Tab') {
+      e.preventDefault();
+      const tabs = switcherTabs;
+      if (tabs.length < 2) return;
+
+      if (!switcherOpen) {
+        switcherOpen = true;
+        switcherIndex = e.shiftKey ? tabs.length - 1 : 1;
+      } else {
+        if (e.shiftKey) {
+          switcherIndex = (switcherIndex - 1 + tabs.length) % tabs.length;
+        } else {
+          switcherIndex = (switcherIndex + 1) % tabs.length;
+        }
+      }
+      return;
+    }
+
+    // Close switcher on Escape without switching
+    if (switcherOpen && e.key === 'Escape') {
+      e.preventDefault();
+      switcherOpen = false;
+      switcherIndex = 0;
+      return;
+    }
+
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
       saveFile();
@@ -293,6 +358,18 @@
     } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
       e.preventDefault();
       doFormat();
+    }
+  }
+
+  function handleKeyup(e: KeyboardEvent) {
+    if (e.key === 'Control' && switcherOpen) {
+      const tabs = switcherTabs;
+      const selectedTab = tabs[switcherIndex];
+      switcherOpen = false;
+      switcherIndex = 0;
+      if (selectedTab) {
+        state.activeTabId = selectedTab.id;
+      }
     }
   }
 
@@ -362,7 +439,7 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window on:keydown={handleKeydown} on:keyup={handleKeyup} />
 
 <div class="app" class:dark={state.darkMode} class:drag-over={isDraggingOver}>
   <div class="toolbar">
@@ -479,6 +556,10 @@
       {/key}
     {/if}
   </div>
+
+  {#if switcherOpen}
+    <TabSwitcher tabs={switcherTabs} selectedIndex={switcherIndex} darkMode={state.darkMode} />
+  {/if}
 </div>
 
 <style>
