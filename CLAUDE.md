@@ -2,6 +2,29 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+# Agent Instructions
+
+## Issue tracking
+
+This project uses **dcat** for issue tracking and **git** for version control. You MUST run `dcat prime` for instructions.
+Then run `dcat list --agent-only` to see the list of issues. Generally we work on bugs first, and always on high priority issues first.
+
+ALWAYS run `dcat update --status in_progress $issueId` when you start working on an issue.
+
+It is okay to work on multiple issues at the same time - just mark all of them as in_progress, and ask the user which one to prioritize if there is a conflict.
+
+If the user brings up a new bug, feature or anything else that warrants changes to the code, ALWAYS ask if we should create an issue for it before you start working on the code.
+
+### Closing Issues - IMPORTANT
+
+NEVER close issues without explicit user approval. When work is complete:
+
+1. Set status to `in_review`: `dcat update --status in_review $issueId`
+2. Ask the user to test
+3. Ask if we can close it: "Can I close issue [id] '[title]'?"
+4. Only run `dcat close` after user confirms
+
+
 ## Build & Development Commands
 
 ```bash
