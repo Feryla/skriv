@@ -101,7 +101,8 @@ export function createEditor(
   content: string,
   filename: string,
   darkMode: boolean,
-  onChange: (content: string) => void
+  onChange: (content: string) => void,
+  columnSelection: boolean = false
 ): monaco.editor.IStandaloneCodeEditor {
   const language = getLanguageFromFilename(filename);
   
@@ -120,8 +121,7 @@ export function createEditor(
     tabSize: 2,
     insertSpaces: true,
     folding: true,
-    // Column selection with middle mouse or Alt+Shift
-    columnSelection: true,
+    columnSelection,
     // Better find/replace
     find: {
       addExtraSpaceOnTop: false,

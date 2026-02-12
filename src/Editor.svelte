@@ -7,12 +7,14 @@
     content,
     filename,
     darkMode,
+    columnSelection,
     onUpdate,
     onEditorReady,
   }: {
     content: string;
     filename: string;
     darkMode: boolean;
+    columnSelection: boolean;
     onUpdate: (content: string) => void;
     onEditorReady?: (editor: Monaco.editor.IStandaloneCodeEditor) => void;
   } = $props();
@@ -22,7 +24,7 @@
 
   onMount(() => {
     setupThemes();
-    editor = createEditor(container, content, filename, darkMode, onUpdate);
+    editor = createEditor(container, content, filename, darkMode, onUpdate, columnSelection);
     
     if (onEditorReady) {
       onEditorReady(editor);

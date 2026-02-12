@@ -24,6 +24,7 @@
     activeTabId: null,
     nextTempNumber: 1,
     darkMode: true,
+    columnSelection: false,
   });
 
   let loaded = $state(false);
@@ -269,6 +270,11 @@
     state.darkMode = !state.darkMode;
   }
 
+  function toggleColumnSelection() {
+    state.columnSelection = !state.columnSelection;
+    currentEditor?.updateOptions({ columnSelection: state.columnSelection });
+  }
+
   function isDirty(tab: Tab): boolean {
     return tab.content !== tab.savedContent;
   }
@@ -472,6 +478,12 @@
         <path d="M4 6h16M4 12h10M4 18h14" />
       </svg>
     </button>
+    <button class:active={state.columnSelection} onclick={toggleColumnSelection} title="Column Selection">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="6" y="4" width="12" height="16" rx="1" />
+        <rect x="9" y="7" width="6" height="6" rx="0.5" opacity="0.5" fill="currentColor" stroke="none" />
+      </svg>
+    </button>
     <div class="spacer"></div>
     <button onclick={toggleTheme} title="Toggle Theme">
       {#if state.darkMode}
@@ -550,6 +562,7 @@
           content={activeTab.content}
           filename={activeTab.name}
           darkMode={state.darkMode}
+          columnSelection={state.columnSelection}
           onUpdate={updateContent}
           onEditorReady={handleEditorReady}
         />
@@ -619,6 +632,15 @@
 
   .dark .toolbar button:hover {
     background: #3c3c3c;
+  }
+
+  .toolbar button.active {
+    background: #0366d6;
+    color: #fff;
+  }
+
+  .toolbar button.active:hover {
+    background: #0255b3;
   }
 
   .toolbar svg {

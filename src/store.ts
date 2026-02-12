@@ -16,6 +16,7 @@ export interface SessionState {
   activeTabId: string | null;
   nextTempNumber: number;
   darkMode: boolean;
+  columnSelection: boolean;
 }
 
 const SESSION_FILE = 'session.json';
@@ -68,6 +69,7 @@ export async function loadSession(): Promise<SessionState> {
     activeTabId: null,
     nextTempNumber: 1,
     darkMode: true,
+    columnSelection: false,
   };
 }
 
