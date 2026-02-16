@@ -142,6 +142,26 @@ export function createEditor(
     onChange(editor.getValue());
   });
 
+  // Register "Install CLI" command in the command palette
+  editor.addAction({
+    id: 'skriv.installCli',
+    label: "Install 'skriv' command in PATH",
+    run: async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      try {
+        const result = await invoke<string>('install_cli');
+        if (result === 'already_installed') {
+          alert("'skriv' command is already installed in PATH.");
+        } else {
+          alert("'skriv' command installed successfully. You can now use 'skriv' from the terminal.");
+        }
+      } catch (e) {
+        if (String(e).includes('User canceled')) return;
+        alert(`Failed to install CLI: ${e}`);
+      }
+    },
+  });
+
   return editor;
 }
 

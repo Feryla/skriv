@@ -1,30 +1,45 @@
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
-#[cfg(target_os = "macos")]
-fn install_cli() {
-    use std::fs;
-    use std::os::unix::fs::PermissionsExt;
+#[tauri::command]
+fn install_cli() -> Result<String, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let path = "/usr/local/bin/skriv";
+        let script_content = "#!/bin/sh\\n/Applications/skriv.app/Contents/MacOS/app \\\"$@\\\" &\\n";
 
-    let path = std::path::Path::new("/usr/local/bin/skriv");
-    let script = "#!/bin/sh\nopen -a skriv \"$@\"\n";
-
-    // Skip if already correct
-    if path.exists() {
-        if let Ok(contents) = fs::read_to_string(path) {
-            if contents == script {
-                return;
+        // Check if already installed correctly
+        if let Ok(contents) = std::fs::read_to_string(path) {
+            if contents == "#!/bin/sh\n/Applications/skriv.app/Contents/MacOS/app \"$@\" &\n" {
+                return Ok("already_installed".into());
             }
         }
-    }
 
-    if fs::write(path, script).is_ok() {
-        let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o755));
+        let cmd = format!(
+            "printf '{}' > {} && chmod +x {}",
+            script_content, path, path
+        );
+        let output = std::process::Command::new("osascript")
+            .arg("-e")
+            .arg(format!(
+                "do shell script \"{}\" with administrator privileges",
+                cmd
+            ))
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if output.status.success() {
+            Ok("installed".into())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(stderr.into_owned())
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("CLI installation is only supported on macOS".into())
     }
 }
-
-#[cfg(not(target_os = "macos"))]
-fn install_cli() {}
 
 struct CliArgs {
     args: Vec<String>,
@@ -58,7 +73,7 @@ pub fn run() {
                 .to_string_lossy()
                 .into_owned(),
         }))
-        .invoke_handler(tauri::generate_handler![get_cli_args])
+        .invoke_handler(tauri::generate_handler![get_cli_args, install_cli])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -67,7 +82,6 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            install_cli();
             Ok(())
         })
         .run(tauri::generate_context!())
