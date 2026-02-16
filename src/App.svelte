@@ -124,6 +124,14 @@
       }
     });
 
+    // Handle native menu events
+    const unlistenCommandPalette = await listen('menu-command-palette', () => {
+      openCommandPalette();
+    });
+    const unlistenWordWrap = await listen('menu-word-wrap', () => {
+      toggleWordWrap();
+    });
+
     // Check for updates (fire-and-forget)
     checkForUpdates();
 
@@ -147,6 +155,8 @@
 
     return () => {
       unlistenOpenFiles();
+      unlistenCommandPalette();
+      unlistenWordWrap();
       unlisten();
       unlistenDragDrop();
     };
@@ -400,9 +410,9 @@
     } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
       e.preventDefault();
       doFormat();
-    } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'W') {
+    } else if (e.key === 'F1') {
       e.preventDefault();
-      toggleWordWrap();
+      openCommandPalette();
     }
   }
 
@@ -422,6 +432,10 @@
     if (currentEditor) {
       formatDocument(currentEditor);
     }
+  }
+
+  function openCommandPalette() {
+    currentEditor?.trigger('keyboard', 'editor.action.quickCommand', null);
   }
 
   function handleEditorReady(editor: Monaco.editor.IStandaloneCodeEditor) {

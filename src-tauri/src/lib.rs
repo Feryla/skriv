@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager};
 
 #[tauri::command]
@@ -75,6 +76,54 @@ pub fn run() {
         }))
         .invoke_handler(tauri::generate_handler![get_cli_args, install_cli])
         .setup(|app| {
+            let app_menu = Submenu::with_items(app, "skriv", true, &[
+                &PredefinedMenuItem::about(app, Some("About skriv"), None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::services(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::hide(app, None)?,
+                &PredefinedMenuItem::hide_others(app, None)?,
+                &PredefinedMenuItem::show_all(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::quit(app, None)?,
+            ])?;
+            let file_menu = Submenu::with_items(app, "File", true, &[
+                &PredefinedMenuItem::close_window(app, None)?,
+            ])?;
+            let edit_menu = Submenu::with_items(app, "Edit", true, &[
+                &PredefinedMenuItem::undo(app, None)?,
+                &PredefinedMenuItem::redo(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::cut(app, None)?,
+                &PredefinedMenuItem::copy(app, None)?,
+                &PredefinedMenuItem::paste(app, None)?,
+                &PredefinedMenuItem::select_all(app, None)?,
+            ])?;
+            let command_palette = MenuItem::with_id(app, "command_palette", "Command Palette", true, Some("F1"))?;
+            let word_wrap = MenuItem::with_id(app, "word_wrap", "Word Wrap", true, Some("Control+Shift+W"))?;
+            let view_menu = Submenu::with_items(app, "View", true, &[
+                &command_palette,
+                &PredefinedMenuItem::separator(app)?,
+                &word_wrap,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::fullscreen(app, None)?,
+            ])?;
+            let window_menu = Submenu::with_items(app, "Window", true, &[
+                &PredefinedMenuItem::minimize(app, None)?,
+                &PredefinedMenuItem::maximize(app, None)?,
+            ])?;
+            let help_menu = Submenu::with_items(app, "Help", true, &[])?;
+            let menu = Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu, &help_menu])?;
+            app.set_menu(menu)?;
+
+            app.on_menu_event(|app, event| {
+                if event.id() == "command_palette" {
+                    let _ = app.emit("menu-command-palette", ());
+                } else if event.id() == "word_wrap" {
+                    let _ = app.emit("menu-word-wrap", ());
+                }
+            });
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
