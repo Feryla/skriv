@@ -36,6 +36,7 @@
   let updateAvailable: Awaited<ReturnType<typeof check>> | null = $state(null);
   let updateDownloading = $state(false);
   let updateProgress = $state('');
+  let updateError = $state('');
   let isDraggingOver = $state(false);
 
   // MRU tab switching state
@@ -342,6 +343,7 @@
       console.error('Failed to install update:', e);
       updateDownloading = false;
       updateProgress = '';
+      updateError = String(e);
     }
   }
 
@@ -529,7 +531,12 @@
     </button>
   </div>
 
-  {#if updateAvailable}
+  {#if updateError}
+    <div class="update-bar" style="background: #d32f2f;">
+      <span>Update failed: {updateError}</span>
+      <button class="update-dismiss-btn" onclick={() => updateError = ''}>Dismiss</button>
+    </div>
+  {:else if updateAvailable}
     <div class="update-bar">
       {#if updateDownloading}
         <span>Downloading update... {updateProgress}</span>
