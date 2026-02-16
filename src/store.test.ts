@@ -76,6 +76,7 @@ describe('store', () => {
         activeTabId: null,
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       });
     });
 
@@ -95,6 +96,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: false,
+        columnSelection: false,
       };
 
       setMockFile('/mock/app/data/session.json', JSON.stringify(savedSession));
@@ -127,6 +129,7 @@ describe('store', () => {
         activeTabId: 'temp1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       setMockFile('/mock/app/data/session.json', JSON.stringify(savedSession));
@@ -172,6 +175,7 @@ describe('store', () => {
         activeTabId: 'tab2',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       setMockFile('/mock/app/data/session.json', JSON.stringify(savedSession));
@@ -203,6 +207,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       };
 
       setMockFile('/mock/app/data/session.json', JSON.stringify(savedSession));
@@ -224,6 +229,7 @@ describe('store', () => {
         activeTabId: null,
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       });
     });
   });
@@ -245,6 +251,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -276,6 +283,7 @@ describe('store', () => {
         activeTabId: 'temp1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -305,6 +313,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 3,
         darkMode: false,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -346,6 +355,7 @@ describe('store', () => {
         activeTabId: 'tab2',
         nextTempNumber: 2,
         darkMode: false,
+        columnSelection: false,
       };
 
       // Save the session
@@ -388,6 +398,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -402,6 +413,7 @@ describe('store', () => {
         activeTabId: null,
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(emptyState);
@@ -431,6 +443,7 @@ describe('store', () => {
         activeTabId: 'tab5',
         nextTempNumber: 11,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -465,6 +478,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       // Auto-save triggers
@@ -494,6 +508,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       };
 
       // Save session (but not the file itself)
@@ -529,6 +544,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -564,6 +580,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       };
 
       setMockFile('/mock/app/data/session.json', JSON.stringify(state));
@@ -583,6 +600,7 @@ describe('store', () => {
         activeTabId: null,
         nextTempNumber: 1,
         darkMode: false,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -615,6 +633,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -640,6 +659,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -665,6 +685,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -689,6 +710,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -714,6 +736,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -732,6 +755,7 @@ describe('store', () => {
         activeTabId: 'b',
         nextTempNumber: 4,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -759,6 +783,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -784,6 +809,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -810,6 +836,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       };
 
       // Save session (content gets stripped)
@@ -847,6 +874,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -872,6 +900,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       };
 
       await saveSession(state);
@@ -903,6 +932,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       };
 
       // Save session
@@ -950,6 +980,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 1,
         darkMode: true,
+        columnSelection: false,
       };
 
       // App auto-saves session on close

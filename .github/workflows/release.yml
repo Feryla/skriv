@@ -71,6 +71,7 @@ jobs:
         run: npm ci
 
       - name: Build Tauri app
+        timeout-minutes: 30
         uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
