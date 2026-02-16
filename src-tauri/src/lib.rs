@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
+#[cfg(target_os = "macos")]
 fn install_cli() {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
@@ -21,6 +22,9 @@ fn install_cli() {
         let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o755));
     }
 }
+
+#[cfg(not(target_os = "macos"))]
+fn install_cli() {}
 
 struct CliArgs {
     args: Vec<String>,
