@@ -3,3 +3,6 @@ dist/
 
 # SBOM output files
 *.cdx.json
+
+# dcat issue tracker
+.dogcats/.issues.lock
