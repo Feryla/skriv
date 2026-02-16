@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
+  import { listen } from '@tauri-apps/api/event';
+  import { invoke } from '@tauri-apps/api/core';
   import { open, save } from '@tauri-apps/plugin-dialog';
   import { readTextFile, writeTextFile, rename } from '@tauri-apps/plugin-fs';
   import { check } from '@tauri-apps/plugin-updater';
@@ -103,6 +105,22 @@
 
     loaded = true;
 
+    // Handle CLI args from first launch
+    const [args, cwd] = await invoke<[string[], string]>('get_cli_args');
+    const cliPaths = resolveCliPaths(args, cwd);
+    if (cliPaths.length > 0) {
+      await openFilePaths(cliPaths);
+    }
+
+    // Handle files from second instance (single-instance plugin)
+    const unlistenOpenFiles = await listen<[string[], string]>('open-files', async (event) => {
+      const [secondArgs, secondCwd] = event.payload;
+      const paths = resolveCliPaths(secondArgs, secondCwd);
+      if (paths.length > 0) {
+        await openFilePaths(paths);
+      }
+    });
+
     // Check for updates (fire-and-forget)
     checkForUpdates();
 
@@ -125,6 +143,7 @@
     });
 
     return () => {
+      unlistenOpenFiles();
       unlisten();
       unlistenDragDrop();
     };
@@ -188,6 +207,13 @@
         console.error(`Failed to open ${filePath}:`, e);
       }
     }
+  }
+
+  function resolveCliPaths(args: string[], cwd: string): string[] {
+    return args
+      .slice(1) // skip binary path
+      .filter((a) => !a.startsWith('-'))
+      .map((p) => (p.startsWith('/') ? p : cwd + '/' + p));
   }
 
   async function saveFile() {
