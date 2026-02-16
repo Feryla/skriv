@@ -1,6 +1,27 @@
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
+fn install_cli() {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = std::path::Path::new("/usr/local/bin/skriv");
+    let script = "#!/bin/sh\nopen -a skriv \"$@\"\n";
+
+    // Skip if already correct
+    if path.exists() {
+        if let Ok(contents) = fs::read_to_string(path) {
+            if contents == script {
+                return;
+            }
+        }
+    }
+
+    if fs::write(path, script).is_ok() {
+        let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o755));
+    }
+}
+
 struct CliArgs {
     args: Vec<String>,
     cwd: String,
@@ -42,6 +63,7 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            install_cli();
             Ok(())
         })
         .run(tauri::generate_context!())
