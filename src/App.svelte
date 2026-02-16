@@ -385,7 +385,7 @@
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
       e.preventDefault();
       openFile();
-    } else if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === 'n' || e.key === 't')) {
       e.preventDefault();
       newTab();
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'w') {

@@ -67,6 +67,22 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
+      - name: Generate changelog
+        id: changelog
+        run: |
+          tag="${{ github.ref_name }}"
+          prev=$(git describe --tags --abbrev=0 "$tag^" 2>/dev/null || echo "")
+          if [ -n "$prev" ]; then
+            log=$(git log --pretty=format:"- %s" "$prev..$tag" -- . ':!.github')
+          else
+            log=$(git log --pretty=format:"- %s" "$tag" -- . ':!.github')
+          fi
+          {
+            echo 'body<<EOF'
+            echo "$log"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Install frontend dependencies
         run: npm ci
 
@@ -84,7 +100,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'skriv ${{ github.ref_name }}'
-          releaseBody: ''
+          releaseBody: ${{ steps.changelog.outputs.body }}
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
