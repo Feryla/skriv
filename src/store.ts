@@ -17,6 +17,7 @@ export interface SessionState {
   nextTempNumber: number;
   darkMode: boolean;
   columnSelection: boolean;
+  wordWrap: boolean;
 }
 
 const SESSION_FILE = 'session.json';
@@ -69,6 +70,7 @@ export async function loadSession(): Promise<SessionState> {
     nextTempNumber: 1,
     darkMode: true,
     columnSelection: false,
+    wordWrap: false,
   };
 }
 

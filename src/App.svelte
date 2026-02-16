@@ -27,6 +27,7 @@
     nextTempNumber: 1,
     darkMode: localStorage.getItem('darkMode') !== 'false',
     columnSelection: false,
+    wordWrap: false,
   });
 
   let loaded = $state(false);
@@ -304,6 +305,11 @@
     currentEditor?.updateOptions({ columnSelection: state.columnSelection });
   }
 
+  function toggleWordWrap() {
+    state.wordWrap = !state.wordWrap;
+    currentEditor?.updateOptions({ wordWrap: state.wordWrap ? 'on' : 'off' });
+  }
+
   function isDirty(tab: Tab): boolean {
     return tab.content !== tab.savedContent;
   }
@@ -394,6 +400,9 @@
     } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
       e.preventDefault();
       doFormat();
+    } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'W') {
+      e.preventDefault();
+      toggleWordWrap();
     }
   }
 
@@ -514,6 +523,12 @@
         <rect x="9" y="7" width="6" height="6" rx="0.5" opacity="0.5" fill="currentColor" stroke="none" />
       </svg>
     </button>
+    <button class:active={state.wordWrap} onclick={toggleWordWrap} title="Word Wrap (Ctrl+Shift+W)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 6h16M4 12h13a3 3 0 010 6H10" />
+        <polyline points="13 15 10 18 13 21" />
+      </svg>
+    </button>
     <div class="spacer"></div>
     <button onclick={toggleTheme} title="Toggle Theme">
       {#if state.darkMode}
@@ -598,6 +613,7 @@
           filename={activeTab.name}
           darkMode={state.darkMode}
           columnSelection={state.columnSelection}
+          wordWrap={state.wordWrap}
           onUpdate={updateContent}
           onEditorReady={handleEditorReady}
         />

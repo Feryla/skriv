@@ -8,6 +8,7 @@
     filename,
     darkMode,
     columnSelection,
+    wordWrap,
     onUpdate,
     onEditorReady,
   }: {
@@ -15,6 +16,7 @@
     filename: string;
     darkMode: boolean;
     columnSelection: boolean;
+    wordWrap: boolean;
     onUpdate: (content: string) => void;
     onEditorReady?: (editor: Monaco.editor.IStandaloneCodeEditor) => void;
   } = $props();
@@ -25,7 +27,7 @@
   onMount(async () => {
     await loadMonaco();
     setupThemes();
-    editor = createEditor(container, content, filename, darkMode, onUpdate, columnSelection);
+    editor = createEditor(container, content, filename, darkMode, onUpdate, columnSelection, wordWrap);
     
     if (onEditorReady) {
       onEditorReady(editor);

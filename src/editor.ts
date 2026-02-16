@@ -109,7 +109,8 @@ export function createEditor(
   filename: string,
   darkMode: boolean,
   onChange: (content: string) => void,
-  columnSelection: boolean = false
+  columnSelection: boolean = false,
+  wordWrap: boolean = false
 ): Monaco.editor.IStandaloneCodeEditor {
   const language = getLanguageFromFilename(filename);
 
@@ -124,7 +125,7 @@ export function createEditor(
     lineNumbers: 'on',
     renderWhitespace: 'selection',
     scrollBeyondLastLine: false,
-    wordWrap: 'off',
+    wordWrap: wordWrap ? 'on' : 'off',
     tabSize: 2,
     insertSpaces: true,
     folding: true,
