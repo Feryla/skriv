@@ -69,6 +69,7 @@ jobs:
 
       - name: Generate changelog
         id: changelog
+        shell: bash
         run: |
           tag="${{ github.ref_name }}"
           prev=$(git describe --tags --abbrev=0 "$tag^" 2>/dev/null || echo "")
