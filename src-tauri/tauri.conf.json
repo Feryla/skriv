@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "skriv",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "identifier": "net.feryla.skriv",
   "build": {
     "frontendDist": "../dist",
