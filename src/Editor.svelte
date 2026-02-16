@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type * as Monaco from 'monaco-editor';
-  import { createEditor, setupThemes, setEditorTheme } from './editor';
+  import { loadMonaco, createEditor, setupThemes, setEditorTheme } from './editor';
 
   let {
     content,
@@ -20,9 +20,10 @@
   } = $props();
 
   let container: HTMLDivElement;
-  let editor: Monaco.editor.IStandaloneCodeEditor | null = null;
+  let editor: Monaco.editor.IStandaloneCodeEditor | null = $state(null);
 
-  onMount(() => {
+  onMount(async () => {
+    await loadMonaco();
     setupThemes();
     editor = createEditor(container, content, filename, darkMode, onUpdate, columnSelection);
     

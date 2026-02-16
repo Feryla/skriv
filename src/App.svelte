@@ -25,7 +25,7 @@
     tabs: [],
     activeTabId: null,
     nextTempNumber: 1,
-    darkMode: true,
+    darkMode: localStorage.getItem('darkMode') !== 'false',
     columnSelection: false,
   });
 
@@ -104,6 +104,7 @@
     }
 
     loaded = true;
+    localStorage.setItem('darkMode', String(state.darkMode));
 
     // Handle CLI args from first launch
     const [args, cwd] = await invoke<[string[], string]>('get_cli_args');
@@ -294,6 +295,7 @@
 
   function toggleTheme() {
     state.darkMode = !state.darkMode;
+    localStorage.setItem('darkMode', String(state.darkMode));
   }
 
   function toggleColumnSelection() {

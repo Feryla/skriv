@@ -42,21 +42,20 @@ export async function loadSession(): Promise<SessionState> {
       const content = await readTextFile(sessionPath);
       const session = JSON.parse(content) as SessionState;
       
-      // Load content for tabs
-      for (const tab of session.tabs) {
+      // Load content for tabs in parallel
+      await Promise.all(session.tabs.map(async (tab) => {
         const pathToRead = tab.tempPath || tab.path;
         if (pathToRead) {
           try {
             tab.content = await readTextFile(pathToRead);
             tab.savedContent = tab.content;
           } catch (e) {
-            // File might not exist or be unreadable - that's ok, keep empty content
             console.warn(`Could not load file for tab "${tab.name}":`, e);
             tab.content = '';
             tab.savedContent = '';
           }
         }
-      }
+      }));
       
       return session;
     }
@@ -84,13 +83,13 @@ export async function saveSession(state: SessionState): Promise<void> {
     
     const sessionPath = await join(appData, SESSION_FILE);
     
-    // Save temp file contents
-    const tempDir = await ensureTempDir();
-    for (const tab of state.tabs) {
-      if (tab.tempPath) {
-        await writeTextFile(tab.tempPath, tab.content);
-      }
-    }
+    // Save temp file contents in parallel
+    await ensureTempDir();
+    await Promise.all(
+      state.tabs
+        .filter((t) => t.tempPath)
+        .map((t) => writeTextFile(t.tempPath!, t.content)),
+    );
     
     // Save session (without content to keep it small)
     const sessionToSave = {

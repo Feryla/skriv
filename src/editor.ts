@@ -1,4 +1,13 @@
-import * as monaco from 'monaco-editor';
+import type * as Monaco from 'monaco-editor';
+
+let _monaco: typeof Monaco | null = null;
+
+export async function loadMonaco(): Promise<typeof Monaco> {
+  if (!_monaco) {
+    _monaco = await import('monaco-editor');
+  }
+  return _monaco;
+}
 
 // Language mapping based on file extension
 export function getLanguageFromFilename(filename: string): string {
@@ -59,14 +68,13 @@ export function getLanguageFromFilename(filename: string): string {
     'toml': 'ini',
     'properties': 'ini',
   };
-  
+
   return languageMap[ext || ''] || 'plaintext';
 }
 
 // Define themes
 export function setupThemes() {
-  // Light theme (similar to VS Code light)
-  monaco.editor.defineTheme('simple-light', {
+  _monaco!.editor.defineTheme('simple-light', {
     base: 'vs',
     inherit: true,
     rules: [],
@@ -80,8 +88,7 @@ export function setupThemes() {
     },
   });
 
-  // Dark theme (similar to One Dark)
-  monaco.editor.defineTheme('simple-dark', {
+  _monaco!.editor.defineTheme('simple-dark', {
     base: 'vs-dark',
     inherit: true,
     rules: [],
@@ -103,10 +110,10 @@ export function createEditor(
   darkMode: boolean,
   onChange: (content: string) => void,
   columnSelection: boolean = false
-): monaco.editor.IStandaloneCodeEditor {
+): Monaco.editor.IStandaloneCodeEditor {
   const language = getLanguageFromFilename(filename);
-  
-  const editor = monaco.editor.create(container, {
+
+  const editor = _monaco!.editor.create(container, {
     value: content,
     language,
     theme: darkMode ? 'simple-dark' : 'simple-light',
@@ -138,20 +145,18 @@ export function createEditor(
   return editor;
 }
 
-export function formatDocument(editor: monaco.editor.IStandaloneCodeEditor): void {
+export function formatDocument(editor: Monaco.editor.IStandaloneCodeEditor): void {
   editor.getAction('editor.action.formatDocument')?.run();
 }
 
-export function setEditorLanguage(editor: monaco.editor.IStandaloneCodeEditor, filename: string): void {
+export function setEditorLanguage(editor: Monaco.editor.IStandaloneCodeEditor, filename: string): void {
   const model = editor.getModel();
-  if (model) {
+  if (model && _monaco) {
     const language = getLanguageFromFilename(filename);
-    monaco.editor.setModelLanguage(model, language);
+    _monaco.editor.setModelLanguage(model, language);
   }
 }
 
 export function setEditorTheme(darkMode: boolean): void {
-  monaco.editor.setTheme(darkMode ? 'simple-dark' : 'simple-light');
+  _monaco?.editor.setTheme(darkMode ? 'simple-dark' : 'simple-light');
 }
-
-export { monaco };
