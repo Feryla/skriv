@@ -410,7 +410,10 @@
     } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
       e.preventDefault();
       doFormat();
-    } else if (e.key === 'F1') {
+    } else if (e.altKey && e.key === 'z') {
+      e.preventDefault();
+      toggleWordWrap();
+    } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'p') {
       e.preventDefault();
       openCommandPalette();
     }
@@ -537,7 +540,7 @@
         <rect x="9" y="7" width="6" height="6" rx="0.5" opacity="0.5" fill="currentColor" stroke="none" />
       </svg>
     </button>
-    <button class:active={state.wordWrap} onclick={toggleWordWrap} title="Word Wrap (Ctrl+Shift+W)">
+    <button class:active={state.wordWrap} onclick={toggleWordWrap} title="Word Wrap (Alt+Z)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M4 6h16M4 12h13a3 3 0 010 6H10" />
         <polyline points="13 15 10 18 13 21" />

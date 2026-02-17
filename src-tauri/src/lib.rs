@@ -99,8 +99,8 @@ pub fn run() {
                 &PredefinedMenuItem::paste(app, None)?,
                 &PredefinedMenuItem::select_all(app, None)?,
             ])?;
-            let command_palette = MenuItem::with_id(app, "command_palette", "Command Palette", true, Some("F1"))?;
-            let word_wrap = MenuItem::with_id(app, "word_wrap", "Word Wrap", true, Some("Control+Shift+W"))?;
+            let command_palette = MenuItem::with_id(app, "command_palette", "Command Palette", true, Some("Super+Shift+P"))?;
+            let word_wrap = MenuItem::with_id(app, "word_wrap", "Word Wrap", true, Some("Alt+Z"))?;
             let view_menu = Submenu::with_items(app, "View", true, &[
                 &command_palette,
                 &PredefinedMenuItem::separator(app)?,
