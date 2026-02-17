@@ -5,7 +5,7 @@
   "identifier": "net.feryla.skriv",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:6173",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },

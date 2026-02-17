@@ -98,6 +98,8 @@ pub fn run() {
                 &PredefinedMenuItem::copy(app, None)?,
                 &PredefinedMenuItem::paste(app, None)?,
                 &PredefinedMenuItem::select_all(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &MenuItem::with_id(app, "toggle_comment", "Toggle Comment", true, Some("CmdOrCtrl+Shift+C"))?,
             ])?;
             let command_palette = MenuItem::with_id(app, "command_palette", "Command Palette", true, Some("Super+Shift+P"))?;
             let word_wrap = MenuItem::with_id(app, "word_wrap", "Word Wrap", true, Some("Alt+Z"))?;
@@ -121,6 +123,8 @@ pub fn run() {
                     let _ = app.emit("menu-command-palette", ());
                 } else if event.id() == "word_wrap" {
                     let _ = app.emit("menu-word-wrap", ());
+                } else if event.id() == "toggle_comment" {
+                    let _ = app.emit("menu-toggle-comment", ());
                 }
             });
 

@@ -83,7 +83,7 @@ NEVER close issues without explicit user approval. When work is complete:
 
 ```bash
 npm run tauri dev      # Run the full Tauri app in dev mode (frontend + Rust backend)
-npm run dev            # Start only the Vite dev server on port 5173
+npm run dev            # Start only the Vite dev server on port 6173
 npm run build          # Build frontend only (output to dist/)
 npm run tauri build    # Build the full Tauri app bundle for distribution
 ```

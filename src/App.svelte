@@ -19,7 +19,7 @@
   } from './store';
   import Editor from './Editor.svelte';
   import TabSwitcher from './TabSwitcher.svelte';
-  import { formatDocument, setEditorLanguage } from './editor';
+  import { loadMonaco, formatDocument, setEditorLanguage } from './editor';
 
   let state: SessionState = $state({
     tabs: [],
@@ -131,6 +131,10 @@
     const unlistenWordWrap = await listen('menu-word-wrap', () => {
       toggleWordWrap();
     });
+    const unlistenToggleComment = await listen('menu-toggle-comment', () => {
+      currentEditor?.focus();
+      currentEditor?.trigger('keyboard', 'editor.action.commentLine', null);
+    });
 
     // Check for updates (fire-and-forget)
     checkForUpdates();
@@ -157,6 +161,7 @@
       unlistenOpenFiles();
       unlistenCommandPalette();
       unlistenWordWrap();
+      unlistenToggleComment();
       unlisten();
       unlistenDragDrop();
     };
@@ -441,8 +446,30 @@
     currentEditor?.trigger('keyboard', 'editor.action.quickCommand', null);
   }
 
-  function handleEditorReady(editor: Monaco.editor.IStandaloneCodeEditor) {
+  async function handleEditorReady(editor: Monaco.editor.IStandaloneCodeEditor) {
     currentEditor = editor;
+    const monaco = await loadMonaco();
+    const { KeyMod, KeyCode } = monaco;
+
+    // Cmd+Shift+C — toggle line comment
+    editor.addCommand(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyC, () => {
+      editor.trigger('keyboard', 'editor.action.commentLine', null);
+    });
+
+    // Alt+Z — word wrap
+    editor.addCommand(KeyMod.Alt | KeyCode.KeyZ, () => {
+      toggleWordWrap();
+    });
+
+    // Cmd+Shift+F — format
+    editor.addCommand(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyF, () => {
+      doFormat();
+    });
+
+    // Cmd+Shift+P — command palette
+    editor.addCommand(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyP, () => {
+      openCommandPalette();
+    });
   }
 
   async function renameTab(tabId: string, newName: string) {
