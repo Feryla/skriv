@@ -72,6 +72,39 @@ export function getLanguageFromFilename(filename: string): string {
   return languageMap[ext || ''] || 'plaintext';
 }
 
+const displayNames: Record<string, string> = {
+  javascript: 'JavaScript',
+  typescript: 'TypeScript',
+  html: 'HTML',
+  css: 'CSS',
+  scss: 'SCSS',
+  less: 'Less',
+  json: 'JSON',
+  xml: 'XML',
+  yaml: 'YAML',
+  markdown: 'Markdown',
+  java: 'Java',
+  sql: 'SQL',
+  python: 'Python',
+  ruby: 'Ruby',
+  go: 'Go',
+  rust: 'Rust',
+  c: 'C',
+  cpp: 'C++',
+  csharp: 'C#',
+  php: 'PHP',
+  shell: 'Shell',
+  powershell: 'PowerShell',
+  bat: 'Batch',
+  ini: 'INI',
+  plaintext: 'Plain Text',
+};
+
+export function getLanguageDisplayName(filename: string): string {
+  const lang = getLanguageFromFilename(filename);
+  return displayNames[lang] || lang;
+}
+
 // Define themes
 export function setupThemes() {
   _monaco!.editor.defineTheme('simple-light', {

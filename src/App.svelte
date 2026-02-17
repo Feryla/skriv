@@ -19,7 +19,7 @@
   } from './store';
   import Editor from './Editor.svelte';
   import TabSwitcher from './TabSwitcher.svelte';
-  import { loadMonaco, formatDocument, setEditorLanguage } from './editor';
+  import { loadMonaco, formatDocument, setEditorLanguage, getLanguageDisplayName } from './editor';
 
   let state: SessionState = $state({
     tabs: [],
@@ -30,6 +30,8 @@
     wordWrap: false,
   });
 
+  let cursorLine = $state(1);
+  let cursorCol = $state(1);
   let loaded = $state(false);
   let currentEditor: Monaco.editor.IStandaloneCodeEditor | null = $state(null);
   let editingTabId: string | null = $state(null);
@@ -46,6 +48,7 @@
   let switcherIndex = $state(0);
 
   const activeTab = $derived(state.tabs.find((t) => t.id === state.activeTabId));
+  const activeLanguage = $derived(activeTab ? getLanguageDisplayName(activeTab.name) : 'Plain Text');
 
   // Tabs ordered by MRU for the switcher
   const switcherTabs = $derived(
@@ -462,6 +465,16 @@
 
   async function handleEditorReady(editor: Monaco.editor.IStandaloneCodeEditor) {
     currentEditor = editor;
+
+    const pos = editor.getPosition();
+    cursorLine = pos?.lineNumber ?? 1;
+    cursorCol = pos?.column ?? 1;
+
+    editor.onDidChangeCursorPosition((e) => {
+      cursorLine = e.position.lineNumber;
+      cursorCol = e.position.column;
+    });
+
     const monaco = await loadMonaco();
     const { KeyMod, KeyCode } = monaco;
 
@@ -628,6 +641,14 @@
         />
       {/key}
     {/if}
+  </div>
+
+  <div class="status-bar">
+    <span>Ln {cursorLine}, Col {cursorCol}</span>
+    <span class="status-spacer"></span>
+    {#if state.wordWrap}<span>Word Wrap</span>{/if}
+    {#if state.columnSelection}<span>Column Selection</span>{/if}
+    <span>{activeLanguage}</span>
   </div>
 
   {#if switcherOpen}
@@ -803,6 +824,28 @@
   .editor-container {
     flex: 1;
     overflow: hidden;
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 2px 12px;
+    background: #f6f8fa;
+    border-top: 1px solid #e1e4e8;
+    font-size: 12px;
+    color: #586069;
+    user-select: none;
+  }
+
+  .dark .status-bar {
+    background: #252526;
+    border-top-color: #3c3c3c;
+    color: #999;
+  }
+
+  .status-spacer {
+    flex: 1;
   }
 
   .app.drag-over::after {
