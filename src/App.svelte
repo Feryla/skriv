@@ -135,6 +135,13 @@
       currentEditor?.focus();
       currentEditor?.trigger('keyboard', 'editor.action.commentLine', null);
     });
+    const unlistenNewTab = await listen('menu-new-tab', () => { newTab(); });
+    const unlistenOpenFile = await listen('menu-open-file', () => { openFile(); });
+    const unlistenSaveFile = await listen('menu-save-file', () => { saveFile(); });
+    const unlistenSaveFileAs = await listen('menu-save-file-as', () => { saveFileAs(); });
+    const unlistenFormatDocument = await listen('menu-format-document', () => { doFormat(); });
+    const unlistenColumnSelection = await listen('menu-column-selection', () => { toggleColumnSelection(); });
+    const unlistenToggleTheme = await listen('menu-toggle-theme', () => { toggleTheme(); });
 
     // Check for updates (fire-and-forget)
     checkForUpdates();
@@ -162,6 +169,13 @@
       unlistenCommandPalette();
       unlistenWordWrap();
       unlistenToggleComment();
+      unlistenNewTab();
+      unlistenOpenFile();
+      unlistenSaveFile();
+      unlistenSaveFileAs();
+      unlistenFormatDocument();
+      unlistenColumnSelection();
+      unlistenToggleTheme();
       unlisten();
       unlistenDragDrop();
     };
@@ -451,6 +465,16 @@
     const monaco = await loadMonaco();
     const { KeyMod, KeyCode } = monaco;
 
+    // Cmd+S — save
+    editor.addCommand(KeyMod.CtrlCmd | KeyCode.KeyS, () => {
+      saveFile();
+    });
+
+    // Cmd+Shift+S — save as
+    editor.addCommand(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyS, () => {
+      saveFileAs();
+    });
+
     // Cmd+Shift+C — toggle line comment
     editor.addCommand(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyC, () => {
       editor.trigger('keyboard', 'editor.action.commentLine', null);
@@ -531,65 +555,6 @@
 <svelte:window on:keydown={handleKeydown} on:keyup={handleKeyup} />
 
 <div class="app" class:dark={state.darkMode} class:drag-over={isDraggingOver}>
-  <div class="toolbar">
-    <button onclick={newTab} title="New (Ctrl+N)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 5v14M5 12h14" />
-      </svg>
-    </button>
-    <button onclick={openFile} title="Open (Ctrl+O)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-      </svg>
-    </button>
-    <button onclick={saveFile} title="Save (Ctrl+S)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-        <polyline points="17 21 17 13 7 13 7 21" />
-        <polyline points="7 3 7 8 15 8" />
-      </svg>
-    </button>
-    <button onclick={saveFileAs} title="Save As">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-        <path d="M12 11v6M9 14h6" />
-      </svg>
-    </button>
-    <div class="separator"></div>
-    <button onclick={doFormat} title="Format Document (Ctrl+Shift+F)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M4 6h16M4 12h10M4 18h14" />
-      </svg>
-    </button>
-    <button class:active={state.columnSelection} onclick={toggleColumnSelection} title="Column Selection">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="6" y="4" width="12" height="16" rx="1" />
-        <rect x="9" y="7" width="6" height="6" rx="0.5" opacity="0.5" fill="currentColor" stroke="none" />
-      </svg>
-    </button>
-    <button class:active={state.wordWrap} onclick={toggleWordWrap} title="Word Wrap (Alt+Z)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M4 6h16M4 12h13a3 3 0 010 6H10" />
-        <polyline points="13 15 10 18 13 21" />
-      </svg>
-    </button>
-    <div class="spacer"></div>
-    <button onclick={toggleTheme} title="Toggle Theme">
-      {#if state.darkMode}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="5" />
-          <path
-            d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-          />
-        </svg>
-      {:else}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
-        </svg>
-      {/if}
-    </button>
-  </div>
-
   {#if updateError}
     <div class="update-bar" style="background: #d32f2f;">
       <span>Update failed: {updateError}</span>
@@ -693,69 +658,6 @@
   .app.dark {
     background: #1e1e1e;
     color: #d4d4d4;
-  }
-
-  .toolbar {
-    display: flex;
-    gap: 4px;
-    padding: 8px;
-    background: #f6f8fa;
-    border-bottom: 1px solid #e1e4e8;
-  }
-
-  .dark .toolbar {
-    background: #252526;
-    border-bottom-color: #3c3c3c;
-  }
-
-  .toolbar button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: transparent;
-    color: inherit;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .toolbar button:hover {
-    background: #e1e4e8;
-  }
-
-  .dark .toolbar button:hover {
-    background: #3c3c3c;
-  }
-
-  .toolbar button.active {
-    background: #0366d6;
-    color: #fff;
-  }
-
-  .toolbar button.active:hover {
-    background: #0255b3;
-  }
-
-  .toolbar svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .spacer {
-    flex: 1;
-  }
-
-  .separator {
-    width: 1px;
-    height: 20px;
-    background: #e1e4e8;
-    margin: 6px 4px;
-  }
-
-  .dark .separator {
-    background: #3c3c3c;
   }
 
   .tabs {

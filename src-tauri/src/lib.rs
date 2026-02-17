@@ -88,6 +88,12 @@ pub fn run() {
                 &PredefinedMenuItem::quit(app, None)?,
             ])?;
             let file_menu = Submenu::with_items(app, "File", true, &[
+                &MenuItem::with_id(app, "new_tab", "New Tab", true, Some("CmdOrCtrl+N"))?,
+                &MenuItem::with_id(app, "open_file", "Open...", true, Some("CmdOrCtrl+O"))?,
+                &PredefinedMenuItem::separator(app)?,
+                &MenuItem::with_id(app, "save_file", "Save", true, Some("CmdOrCtrl+S"))?,
+                &MenuItem::with_id(app, "save_file_as", "Save As...", true, Some("CmdOrCtrl+Shift+S"))?,
+                &PredefinedMenuItem::separator(app)?,
                 &PredefinedMenuItem::close_window(app, None)?,
             ])?;
             let edit_menu = Submenu::with_items(app, "Edit", true, &[
@@ -100,13 +106,17 @@ pub fn run() {
                 &PredefinedMenuItem::select_all(app, None)?,
                 &PredefinedMenuItem::separator(app)?,
                 &MenuItem::with_id(app, "toggle_comment", "Toggle Comment", true, Some("CmdOrCtrl+Shift+C"))?,
+                &MenuItem::with_id(app, "format_document", "Format Document", true, Some("CmdOrCtrl+Shift+F"))?,
+                &MenuItem::with_id(app, "column_selection", "Column Selection", true, None::<&str>)?,
             ])?;
             let command_palette = MenuItem::with_id(app, "command_palette", "Command Palette", true, Some("Super+Shift+P"))?;
             let word_wrap = MenuItem::with_id(app, "word_wrap", "Word Wrap", true, Some("Alt+Z"))?;
+            let toggle_theme = MenuItem::with_id(app, "toggle_theme", "Toggle Theme", true, None::<&str>)?;
             let view_menu = Submenu::with_items(app, "View", true, &[
                 &command_palette,
                 &PredefinedMenuItem::separator(app)?,
                 &word_wrap,
+                &toggle_theme,
                 &PredefinedMenuItem::separator(app)?,
                 &PredefinedMenuItem::fullscreen(app, None)?,
             ])?;
@@ -119,12 +129,19 @@ pub fn run() {
             app.set_menu(menu)?;
 
             app.on_menu_event(|app, event| {
-                if event.id() == "command_palette" {
-                    let _ = app.emit("menu-command-palette", ());
-                } else if event.id() == "word_wrap" {
-                    let _ = app.emit("menu-word-wrap", ());
-                } else if event.id() == "toggle_comment" {
-                    let _ = app.emit("menu-toggle-comment", ());
+                let id = event.id();
+                match id.as_ref() {
+                    "command_palette" => { let _ = app.emit("menu-command-palette", ()); }
+                    "word_wrap" => { let _ = app.emit("menu-word-wrap", ()); }
+                    "toggle_comment" => { let _ = app.emit("menu-toggle-comment", ()); }
+                    "new_tab" => { let _ = app.emit("menu-new-tab", ()); }
+                    "open_file" => { let _ = app.emit("menu-open-file", ()); }
+                    "save_file" => { let _ = app.emit("menu-save-file", ()); }
+                    "save_file_as" => { let _ = app.emit("menu-save-file-as", ()); }
+                    "format_document" => { let _ = app.emit("menu-format-document", ()); }
+                    "column_selection" => { let _ = app.emit("menu-column-selection", ()); }
+                    "toggle_theme" => { let _ = app.emit("menu-toggle-theme", ()); }
+                    _ => {}
                 }
             });
 
