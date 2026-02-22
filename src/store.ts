@@ -11,9 +11,17 @@ export interface Tab {
   cursorPos: number;
 }
 
+export interface Pane {
+  id: string;
+  tabIds: string[];
+  activeTabId: string | null;
+}
+
 export interface SessionState {
   tabs: Tab[];
-  activeTabId: string | null;
+  panes: Pane[];
+  activePaneId: string;
+  splitRatio: number;
   nextTempNumber: number;
   darkMode: boolean;
   columnSelection: boolean;
@@ -41,10 +49,23 @@ export async function loadSession(): Promise<SessionState> {
     
     if (await exists(sessionPath)) {
       const content = await readTextFile(sessionPath);
-      const session = JSON.parse(content) as SessionState;
-      
+      const session = JSON.parse(content) as any;
+
+      // Migrate old sessions without panes
+      if (!session.panes) {
+        const paneId = generateTabId();
+        session.panes = [{
+          id: paneId,
+          tabIds: session.tabs.map((t: Tab) => t.id),
+          activeTabId: session.activeTabId ?? null,
+        }];
+        session.activePaneId = paneId;
+        session.splitRatio = 0.5;
+        delete session.activeTabId;
+      }
+
       // Load content for tabs in parallel
-      await Promise.all(session.tabs.map(async (tab) => {
+      await Promise.all(session.tabs.map(async (tab: Tab) => {
         const pathToRead = tab.tempPath || tab.path;
         if (pathToRead) {
           try {
@@ -57,16 +78,19 @@ export async function loadSession(): Promise<SessionState> {
           }
         }
       }));
-      
-      return session;
+
+      return session as SessionState;
     }
   } catch (e) {
     console.error('Failed to load session:', e);
   }
   
+  const paneId = generateTabId();
   return {
     tabs: [],
-    activeTabId: null,
+    panes: [{ id: paneId, tabIds: [], activeTabId: null }],
+    activePaneId: paneId,
+    splitRatio: 0.5,
     nextTempNumber: 1,
     darkMode: true,
     columnSelection: false,

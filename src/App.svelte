@@ -10,6 +10,7 @@
   import type * as Monaco from 'monaco-editor';
   import {
     type Tab,
+    type Pane,
     type SessionState,
     loadSession,
     saveSession,
@@ -21,9 +22,12 @@
   import TabSwitcher from './TabSwitcher.svelte';
   import { loadMonaco, formatDocument, setEditorLanguage, getLanguageDisplayName } from './editor';
 
+  const defaultPaneId = generateTabId();
   let state: SessionState = $state({
     tabs: [],
-    activeTabId: null,
+    panes: [{ id: defaultPaneId, tabIds: [], activeTabId: null }],
+    activePaneId: defaultPaneId,
+    splitRatio: 0.5,
     nextTempNumber: 1,
     darkMode: localStorage.getItem('darkMode') !== 'false',
     columnSelection: false,
@@ -33,7 +37,7 @@
   let cursorLine = $state(1);
   let cursorCol = $state(1);
   let loaded = $state(false);
-  let currentEditor: Monaco.editor.IStandaloneCodeEditor | null = $state(null);
+  let editors: Record<string, Monaco.editor.IStandaloneCodeEditor> = $state({});
   let editingTabId: string | null = $state(null);
 
   let updateAvailable: Awaited<ReturnType<typeof check>> | null = $state(null);
@@ -41,44 +45,58 @@
   let updateProgress = $state('');
   let updateError = $state('');
   let isDraggingOver = $state(false);
+  let isDraggingHandle = $state(false);
 
-  // MRU tab switching state
-  let mruOrder: string[] = $state([]);
+  // MRU tab switching state (per-pane)
+  let mruOrder: Record<string, string[]> = $state({});
   let switcherOpen = $state(false);
   let switcherIndex = $state(0);
 
-  const activeTab = $derived(state.tabs.find((t) => t.id === state.activeTabId));
+  const activePane = $derived(state.panes.find(p => p.id === state.activePaneId) ?? state.panes[0]);
+  const activeTab = $derived(state.tabs.find(t => t.id === activePane?.activeTabId));
+  const currentEditor = $derived(editors[state.activePaneId] ?? null);
+  const isSplit = $derived(state.panes.length === 2);
   const activeLanguage = $derived(activeTab ? getLanguageDisplayName(activeTab.name) : 'Plain Text');
 
-  // Tabs ordered by MRU for the switcher
-  const switcherTabs = $derived(
-    mruOrder
+  function paneTabs(pane: Pane): Tab[] {
+    return pane.tabIds.map(id => state.tabs.find(t => t.id === id)!).filter(Boolean);
+  }
+
+  // Tabs ordered by MRU for the switcher (scoped to active pane)
+  const switcherTabs = $derived.by(() => {
+    const paneId = state.activePaneId;
+    const order = mruOrder[paneId] ?? [];
+    return order
       .map((id) => state.tabs.find((t) => t.id === id))
-      .filter((t): t is Tab => t !== undefined),
-  );
+      .filter((t): t is Tab => t !== undefined);
+  });
 
   // Track active tab in MRU order (only when switcher is closed)
   $effect(() => {
-    const activeId = state.activeTabId;
+    const paneId = state.activePaneId;
+    const pane = state.panes.find(p => p.id === paneId);
+    const activeId = pane?.activeTabId;
     const isOpen = switcherOpen;
     if (activeId && !isOpen) {
-      const current = untrack(() => mruOrder);
-      mruOrder = [activeId, ...current.filter((id) => id !== activeId)];
+      const current = untrack(() => mruOrder[paneId] ?? []);
+      mruOrder[paneId] = [activeId, ...current.filter((id) => id !== activeId)];
     }
   });
 
-  // Keep MRU in sync with actual tabs (remove stale, add missing)
+  // Keep MRU in sync with actual tabs per pane (remove stale, add missing)
   $effect(() => {
-    const tabIds = new Set(state.tabs.map((t) => t.id));
-    const current = untrack(() => mruOrder);
-    const cleaned = current.filter((id) => tabIds.has(id));
-    for (const tab of state.tabs) {
-      if (!cleaned.includes(tab.id)) {
-        cleaned.push(tab.id);
+    for (const pane of state.panes) {
+      const tabIds = new Set(pane.tabIds);
+      const current = untrack(() => mruOrder[pane.id] ?? []);
+      const cleaned = current.filter((id) => tabIds.has(id));
+      for (const id of pane.tabIds) {
+        if (!cleaned.includes(id)) {
+          cleaned.push(id);
+        }
       }
-    }
-    if (cleaned.length !== current.length || cleaned.some((id, i) => id !== current[i])) {
-      mruOrder = cleaned;
+      if (cleaned.length !== current.length || cleaned.some((id, i) => id !== current[i])) {
+        mruOrder[pane.id] = cleaned;
+      }
     }
   });
 
@@ -104,8 +122,8 @@
     // If no tabs, create a new one
     if (state.tabs.length === 0) {
       await newTab();
-    } else if (!state.activeTabId && state.tabs.length > 0) {
-      state.activeTabId = state.tabs[0].id;
+    } else if (activePane && !activePane.activeTabId && activePane.tabIds.length > 0) {
+      activePane.activeTabId = activePane.tabIds[0];
     }
 
     loaded = true;
@@ -145,6 +163,7 @@
     const unlistenFormatDocument = await listen('menu-format-document', () => { doFormat(); });
     const unlistenColumnSelection = await listen('menu-column-selection', () => { toggleColumnSelection(); });
     const unlistenToggleTheme = await listen('menu-toggle-theme', () => { toggleTheme(); });
+    const unlistenSplitView = await listen('menu-split-view', () => { splitView(); });
 
     // Check for updates (fire-and-forget)
     checkForUpdates();
@@ -179,12 +198,14 @@
       unlistenFormatDocument();
       unlistenColumnSelection();
       unlistenToggleTheme();
+      unlistenSplitView();
       unlisten();
       unlistenDragDrop();
     };
   });
 
-  async function newTab() {
+  async function newTab(paneId?: string) {
+    const targetPane = state.panes.find(p => p.id === (paneId ?? state.activePaneId)) ?? state.panes[0];
     const tempPath = await createTempFile(state.nextTempNumber);
     const tab: Tab = {
       id: generateTabId(),
@@ -197,7 +218,9 @@
     };
 
     state.tabs = [...state.tabs, tab];
-    state.activeTabId = tab.id;
+    targetPane.tabIds = [...targetPane.tabIds, tab.id];
+    targetPane.activeTabId = tab.id;
+    state.activePaneId = targetPane.id;
     state.nextTempNumber++;
   }
 
@@ -214,10 +237,15 @@
 
   async function openFilePaths(paths: string[]) {
     for (const filePath of paths) {
-      // Check if already open
+      // Check if already open in any pane
       const existing = state.tabs.find((t) => t.path === filePath);
       if (existing) {
-        state.activeTabId = existing.id;
+        // Focus the pane that contains it
+        const ownerPane = state.panes.find(p => p.tabIds.includes(existing.id));
+        if (ownerPane) {
+          ownerPane.activeTabId = existing.id;
+          state.activePaneId = ownerPane.id;
+        }
         continue;
       }
 
@@ -236,7 +264,9 @@
         };
 
         state.tabs = [...state.tabs, tab];
-        state.activeTabId = tab.id;
+        const targetPane = state.panes.find(p => p.id === state.activePaneId) ?? state.panes[0];
+        targetPane.tabIds = [...targetPane.tabIds, tab.id];
+        targetPane.activeTabId = tab.id;
       } catch (e) {
         // Skip files that can't be read (e.g., directories, binary files)
         console.error(`Failed to open ${filePath}:`, e);
@@ -300,30 +330,33 @@
       await deleteTempFile(tab.tempPath);
     }
 
-    const index = state.tabs.findIndex((t) => t.id === tabId);
+    // Find owning pane
+    const pane = state.panes.find(p => p.tabIds.includes(tabId));
+    if (!pane) return;
+
+    const index = pane.tabIds.indexOf(tabId);
+    pane.tabIds = pane.tabIds.filter(id => id !== tabId);
     state.tabs = state.tabs.filter((t) => t.id !== tabId);
 
-    // Select another tab
-    if (state.activeTabId === tabId) {
-      if (state.tabs.length > 0) {
-        const newIndex = Math.min(index, state.tabs.length - 1);
-        state.activeTabId = state.tabs[newIndex].id;
+    // Select another tab within this pane
+    if (pane.activeTabId === tabId) {
+      if (pane.tabIds.length > 0) {
+        const newIndex = Math.min(index, pane.tabIds.length - 1);
+        pane.activeTabId = pane.tabIds[newIndex];
       } else {
-        state.activeTabId = null;
-        await newTab();
+        pane.activeTabId = null;
+        await newTab(pane.id);
       }
     }
 
     await saveSession(state);
   }
 
-  function selectTab(tabId: string) {
-    state.activeTabId = tabId;
-  }
-
-  function updateContent(content: string) {
-    if (activeTab) {
-      activeTab.content = content;
+  function selectTab(tabId: string, paneId: string) {
+    const pane = state.panes.find(p => p.id === paneId);
+    if (pane) {
+      pane.activeTabId = tabId;
+      state.activePaneId = paneId;
     }
   }
 
@@ -334,12 +367,54 @@
 
   function toggleColumnSelection() {
     state.columnSelection = !state.columnSelection;
-    currentEditor?.updateOptions({ columnSelection: state.columnSelection });
+    for (const ed of Object.values(editors)) {
+      ed.updateOptions({ columnSelection: state.columnSelection });
+    }
   }
 
   function toggleWordWrap() {
     state.wordWrap = !state.wordWrap;
-    currentEditor?.updateOptions({ wordWrap: state.wordWrap ? 'on' : 'off' });
+    for (const ed of Object.values(editors)) {
+      ed.updateOptions({ wordWrap: state.wordWrap ? 'on' : 'off' });
+    }
+  }
+
+  async function splitView() {
+    if (isSplit) {
+      // Unsplit: merge pane 2's tabs into pane 1
+      const [pane1, pane2] = state.panes;
+      pane1.tabIds = [...pane1.tabIds, ...pane2.tabIds];
+      if (state.activePaneId === pane2.id && pane2.activeTabId) {
+        pane1.activeTabId = pane2.activeTabId;
+      }
+      // Clean up pane 2's editor reference
+      delete editors[pane2.id];
+      state.panes = [pane1];
+      state.activePaneId = pane1.id;
+    } else {
+      // Split: create pane 2 with a new empty tab
+      const newPaneId = generateTabId();
+      state.panes = [...state.panes, { id: newPaneId, tabIds: [], activeTabId: null }];
+      state.activePaneId = newPaneId;
+      await newTab(newPaneId);
+    }
+  }
+
+  function startResize(e: PointerEvent) {
+    isDraggingHandle = true;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onResizeMove(e: PointerEvent) {
+    if (!isDraggingHandle) return;
+    const editorArea = (e.target as HTMLElement).parentElement!;
+    const rect = editorArea.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    state.splitRatio = Math.max(0.2, Math.min(0.8, ratio));
+  }
+
+  function onResizeEnd() {
+    isDraggingHandle = false;
   }
 
   function isDirty(tab: Tab): boolean {
@@ -438,6 +513,9 @@
     } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'p') {
       e.preventDefault();
       openCommandPalette();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
+      e.preventDefault();
+      splitView();
     }
   }
 
@@ -447,8 +525,8 @@
       const selectedTab = tabs[switcherIndex];
       switcherOpen = false;
       switcherIndex = 0;
-      if (selectedTab) {
-        state.activeTabId = selectedTab.id;
+      if (selectedTab && activePane) {
+        activePane.activeTabId = selectedTab.id;
       }
     }
   }
@@ -463,16 +541,24 @@
     currentEditor?.trigger('keyboard', 'editor.action.quickCommand', null);
   }
 
-  async function handleEditorReady(editor: Monaco.editor.IStandaloneCodeEditor) {
-    currentEditor = editor;
+  async function handleEditorReady(editor: Monaco.editor.IStandaloneCodeEditor, paneId: string) {
+    editors[paneId] = editor;
 
     const pos = editor.getPosition();
-    cursorLine = pos?.lineNumber ?? 1;
-    cursorCol = pos?.column ?? 1;
+    if (paneId === state.activePaneId) {
+      cursorLine = pos?.lineNumber ?? 1;
+      cursorCol = pos?.column ?? 1;
+    }
 
     editor.onDidChangeCursorPosition((e) => {
-      cursorLine = e.position.lineNumber;
-      cursorCol = e.position.column;
+      if (paneId === state.activePaneId) {
+        cursorLine = e.position.lineNumber;
+        cursorCol = e.position.column;
+      }
+    });
+
+    editor.onDidFocusEditorWidget(() => {
+      state.activePaneId = paneId;
     });
 
     const monaco = await loadMonaco();
@@ -585,62 +671,85 @@
     </div>
   {/if}
 
-  <div class="tabs">
-    {#each state.tabs as tab (tab.id)}
+  <div class="editor-area" class:dragging={isDraggingHandle}>
+    {#each state.panes as pane, paneIndex (pane.id)}
+      {@const paneActive = pane.id === state.activePaneId}
+      {@const paneTabList = paneTabs(pane)}
+      {@const paneActiveTab = state.tabs.find(t => t.id === pane.activeTabId)}
       <div
-        class="tab"
-        class:active={tab.id === state.activeTabId}
-        class:dirty={isDirty(tab)}
-        onclick={() => selectTab(tab.id)}
-        ondblclick={() => startEditingTab(tab.id)}
-        onkeydown={(e) => e.key === 'Enter' && selectTab(tab.id)}
-        role="tab"
-        tabindex="0"
+        class="pane"
+        class:active-pane={paneActive}
+        style={isSplit ? `width: ${paneIndex === 0 ? state.splitRatio * 100 : (1 - state.splitRatio) * 100}%` : ''}
       >
-        {#if editingTabId === tab.id}
-          <input
-            class="tab-name-input"
-            value={tab.name}
-            onkeydown={(e) => handleRenameKeydown(e, tab.id)}
-            onblur={(e) => handleRenameBlur(e, tab.id)}
-            onclick={(e) => e.stopPropagation()}
-            use:focusAndSelectRenameInput
-          />
-        {:else}
-          <span class="tab-name">{tab.name}</span>
-        {/if}
-        {#if isDirty(tab)}
-          <span class="dirty-indicator">●</span>
-        {/if}
-        <button
-          class="close-btn"
-          onclick={(e) => {
-            e.stopPropagation();
-            closeTab(tab.id);
-          }}
-          title="Close"
-        >
-          ×
-        </button>
-      </div>
-    {/each}
-    <button class="new-tab-btn" onclick={newTab} title="New Tab">+</button>
-  </div>
+        <div class="tabs">
+          {#each paneTabList as tab (tab.id)}
+            <div
+              class="tab"
+              class:active={tab.id === pane.activeTabId}
+              class:dirty={isDirty(tab)}
+              class:focused={tab.id === pane.activeTabId && paneActive}
+              onclick={() => selectTab(tab.id, pane.id)}
+              ondblclick={() => startEditingTab(tab.id)}
+              onkeydown={(e) => e.key === 'Enter' && selectTab(tab.id, pane.id)}
+              role="tab"
+              tabindex="0"
+            >
+              {#if editingTabId === tab.id}
+                <input
+                  class="tab-name-input"
+                  value={tab.name}
+                  onkeydown={(e) => handleRenameKeydown(e, tab.id)}
+                  onblur={(e) => handleRenameBlur(e, tab.id)}
+                  onclick={(e) => e.stopPropagation()}
+                  use:focusAndSelectRenameInput
+                />
+              {:else}
+                <span class="tab-name">{tab.name}</span>
+              {/if}
+              {#if isDirty(tab)}
+                <span class="dirty-indicator">●</span>
+              {/if}
+              <button
+                class="close-btn"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  closeTab(tab.id);
+                }}
+                title="Close"
+              >
+                ×
+              </button>
+            </div>
+          {/each}
+          <button class="new-tab-btn" onclick={() => newTab(pane.id)} title="New Tab">+</button>
+        </div>
 
-  <div class="editor-container">
-    {#if loaded && activeTab}
-      {#key activeTab.id}
-        <Editor
-          content={activeTab.content}
-          filename={activeTab.name}
-          darkMode={state.darkMode}
-          columnSelection={state.columnSelection}
-          wordWrap={state.wordWrap}
-          onUpdate={updateContent}
-          onEditorReady={handleEditorReady}
-        />
-      {/key}
-    {/if}
+        <div class="editor-container">
+          {#if loaded && paneActiveTab}
+            {#key paneActiveTab.id}
+              <Editor
+                content={paneActiveTab.content}
+                filename={paneActiveTab.name}
+                darkMode={state.darkMode}
+                columnSelection={state.columnSelection}
+                wordWrap={state.wordWrap}
+                onUpdate={(content) => { if (paneActiveTab) paneActiveTab.content = content; }}
+                onEditorReady={(editor) => handleEditorReady(editor, pane.id)}
+              />
+            {/key}
+          {/if}
+        </div>
+      </div>
+      {#if isSplit && paneIndex === 0}
+        <div
+          class="resize-handle"
+          role="separator"
+          onpointerdown={startResize}
+          onpointermove={onResizeMove}
+          onpointerup={onResizeEnd}
+        ></div>
+      {/if}
+    {/each}
   </div>
 
   <div class="status-bar">
@@ -717,11 +826,19 @@
 
   .tab.active {
     background: #ffffff;
-    border-bottom-color: #0366d6;
+    border-bottom-color: #a0a0a0;
   }
 
   .dark .tab.active {
     background: #1e1e1e;
+    border-bottom-color: #555;
+  }
+
+  .tab.focused {
+    border-bottom-color: #0366d6;
+  }
+
+  .dark .tab.focused {
     border-bottom-color: #0366d6;
   }
 
@@ -819,6 +936,41 @@
 
   .update-dismiss-btn:hover {
     color: #fff;
+  }
+
+  .editor-area {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .editor-area .pane:not(:only-child) {
+    flex: none;
+  }
+
+  .resize-handle {
+    width: 4px;
+    cursor: col-resize;
+    background: #e1e4e8;
+    flex-shrink: 0;
+    touch-action: none;
+  }
+
+  .dark .resize-handle {
+    background: #3c3c3c;
+  }
+
+  .resize-handle:hover,
+  .editor-area.dragging .resize-handle {
+    background: #0366d6;
   }
 
   .editor-container {

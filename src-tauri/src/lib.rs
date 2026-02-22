@@ -112,8 +112,11 @@ pub fn run() {
             let command_palette = MenuItem::with_id(app, "command_palette", "Command Palette", true, Some("Super+Shift+P"))?;
             let word_wrap = MenuItem::with_id(app, "word_wrap", "Word Wrap", true, Some("Alt+Z"))?;
             let toggle_theme = MenuItem::with_id(app, "toggle_theme", "Toggle Theme", true, None::<&str>)?;
+            let split_view = MenuItem::with_id(app, "split_view", "Split View", true, Some("CmdOrCtrl+\\"))?;
             let view_menu = Submenu::with_items(app, "View", true, &[
                 &command_palette,
+                &PredefinedMenuItem::separator(app)?,
+                &split_view,
                 &PredefinedMenuItem::separator(app)?,
                 &word_wrap,
                 &toggle_theme,
@@ -141,6 +144,7 @@ pub fn run() {
                     "format_document" => { let _ = app.emit("menu-format-document", ()); }
                     "column_selection" => { let _ = app.emit("menu-column-selection", ()); }
                     "toggle_theme" => { let _ = app.emit("menu-toggle-theme", ()); }
+                    "split_view" => { let _ = app.emit("menu-split-view", ()); }
                     _ => {}
                 }
             });
