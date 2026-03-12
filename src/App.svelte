@@ -593,6 +593,29 @@
     editor.addCommand(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyP, () => {
       openCommandPalette();
     });
+
+    // Workaround: backwards (RTL) selections in WKWebView swallow first keypress.
+    // Normalize to forward selection before printable character input.
+    editor.onKeyDown((e) => {
+      const sel = editor.getSelection();
+      if (!sel || sel.isEmpty()) return;
+      if (sel.getDirection() !== monaco.SelectionDirection.RTL) return;
+
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const code = e.browserEvent.code;
+      if (code.startsWith('Arrow') || /^F\d+$/.test(code)
+        || ['Tab', 'Escape', 'Enter', 'Backspace', 'Delete', 'Home', 'End',
+            'PageUp', 'PageDown', 'Insert', 'CapsLock', 'NumLock', 'ScrollLock',
+            'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight',
+            'MetaLeft', 'MetaRight', 'AltLeft', 'AltRight',
+            'ContextMenu', 'PrintScreen', 'Pause'].includes(code)) return;
+
+      editor.setSelection(new monaco.Selection(
+        sel.startLineNumber, sel.startColumn,
+        sel.endLineNumber, sel.endColumn
+      ));
+    });
   }
 
   async function renameTab(tabId: string, newName: string) {
