@@ -1,4 +1,5 @@
 import type * as Monaco from 'monaco-editor';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 let _monaco: typeof Monaco | null = null;
 
@@ -105,8 +106,19 @@ export function getLanguageDisplayName(filename: string): string {
   return displayNames[lang] || lang;
 }
 
-// Define themes
+// Define themes and register link opener
 export function setupThemes() {
+  _monaco!.editor.registerLinkOpener({
+    open(resource: Monaco.Uri) {
+      const url = resource.toString(true);
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        openUrl(url);
+        return true;
+      }
+      return false;
+    },
+  });
+
   _monaco!.editor.defineTheme('simple-light', {
     base: 'vs',
     inherit: true,
