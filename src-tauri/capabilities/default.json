@@ -37,6 +37,7 @@
     "dialog:allow-save",
     "core:window:allow-set-title",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "opener:default"
   ]
 }
