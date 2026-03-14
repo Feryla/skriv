@@ -729,7 +729,7 @@
 
       const code = e.browserEvent.code;
       if (code.startsWith('Arrow') || /^F\d+$/.test(code)
-        || ['Tab', 'Escape', 'Enter', 'Backspace', 'Delete', 'Home', 'End',
+        || ['Tab', 'Escape', 'Backspace', 'Delete', 'Home', 'End',
             'PageUp', 'PageDown', 'Insert', 'CapsLock', 'NumLock', 'ScrollLock',
             'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight',
             'MetaLeft', 'MetaRight', 'AltLeft', 'AltRight',
