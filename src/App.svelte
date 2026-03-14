@@ -47,6 +47,12 @@
   let isDraggingOver = $state(false);
   let isDraggingHandle = $state(false);
 
+  // Tab drag-to-reorder state
+  let dragTabId: string | null = $state(null);
+  let dragOverTabId: string | null = $state(null);
+  let dragPaneId: string | null = $state(null);
+  let dragStartX: number = 0;
+
   // MRU tab switching state (per-pane)
   let mruOrder: Record<string, string[]> = $state({});
   let switcherOpen = $state(false);
@@ -350,6 +356,124 @@
     }
 
     await saveSession(state);
+  }
+
+  function moveTabToPane(fromPaneId: string, toPaneId: string, tabId: string, beforeTabId: string | null) {
+    const fromPane = state.panes.find(p => p.id === fromPaneId);
+    const toPane = state.panes.find(p => p.id === toPaneId);
+    if (!fromPane || !toPane) return;
+
+    // Remove from source pane
+    const wasActive = fromPane.activeTabId === tabId;
+    fromPane.tabIds = fromPane.tabIds.filter(id => id !== tabId);
+    if (wasActive) {
+      fromPane.activeTabId = fromPane.tabIds[0] ?? null;
+    }
+
+    // Insert into target pane
+    if (beforeTabId) {
+      const idx = toPane.tabIds.indexOf(beforeTabId);
+      toPane.tabIds.splice(idx, 0, tabId);
+    } else {
+      toPane.tabIds = [...toPane.tabIds, tabId];
+    }
+    toPane.activeTabId = tabId;
+    state.activePaneId = toPaneId;
+  }
+
+  function reorderTab(paneId: string, fromId: string, toId: string) {
+    const pane = state.panes.find(p => p.id === paneId);
+    if (!pane || fromId === toId) return;
+    const ids = pane.tabIds.filter(id => id !== fromId);
+    const toIndex = ids.indexOf(toId);
+    ids.splice(toIndex, 0, fromId);
+    pane.tabIds = ids;
+  }
+
+  function startTabDrag(e: PointerEvent, tabId: string, paneId: string) {
+    if (editingTabId === tabId) return;
+    dragStartX = e.clientX;
+    dragTabId = null;
+    dragPaneId = paneId;
+
+    const pointerId = e.pointerId;
+    const tabEl = e.currentTarget as HTMLElement;
+
+    function findDropTarget(ev: PointerEvent): { tabId: string | null; paneId: string | null; append: boolean } {
+      const allTabsBars = document.querySelectorAll('.tabs');
+      for (const bar of allTabsBars) {
+        const barRect = bar.getBoundingClientRect();
+        if (ev.clientY < barRect.top || ev.clientY > barRect.bottom) continue;
+
+        const tabs = bar.querySelectorAll('.tab');
+        for (const el of tabs) {
+          const rect = el.getBoundingClientRect();
+          if (ev.clientX >= rect.left && ev.clientX <= rect.right) {
+            return {
+              tabId: (el as HTMLElement).dataset.tabId ?? null,
+              paneId: (el as HTMLElement).dataset.paneId ?? null,
+              append: false,
+            };
+          }
+        }
+
+        // Past all tabs — append to end of this pane's bar
+        if (ev.clientX >= barRect.left && ev.clientX <= barRect.right) {
+          const lastTab = tabs[tabs.length - 1] as HTMLElement | undefined;
+          const pId = lastTab?.dataset.paneId ?? null;
+          return { tabId: null, paneId: pId, append: true };
+        }
+      }
+      return { tabId: null, paneId: null, append: false };
+    }
+
+    function onMove(ev: PointerEvent) {
+      if (!dragTabId && Math.abs(ev.clientX - dragStartX) < 5) return;
+      ev.preventDefault();
+      if (!dragTabId) {
+        dragTabId = tabId;
+        document.body.classList.add('tab-dragging');
+      }
+
+      const hit = findDropTarget(ev);
+      dragOverTabId = hit.tabId !== dragTabId ? hit.tabId : null;
+    }
+
+    function onUp(ev: PointerEvent) {
+      if (dragTabId) {
+        const hit = findDropTarget(ev);
+        if (hit.paneId) {
+          if (hit.append) {
+            if (hit.paneId === dragPaneId) {
+              // Move to end within same pane
+              const pane = state.panes.find(p => p.id === hit.paneId);
+              if (pane) {
+                pane.tabIds = [...pane.tabIds.filter(id => id !== dragTabId), dragTabId];
+              }
+            } else if (dragPaneId) {
+              moveTabToPane(dragPaneId, hit.paneId, dragTabId, null);
+            }
+          } else if (hit.tabId) {
+            if (hit.paneId === dragPaneId) {
+              reorderTab(hit.paneId, dragTabId, hit.tabId);
+            } else if (dragPaneId) {
+              moveTabToPane(dragPaneId, hit.paneId, dragTabId, hit.tabId);
+            }
+          }
+        }
+      }
+      document.body.classList.remove('tab-dragging');
+      dragTabId = null;
+      dragOverTabId = null;
+      dragPaneId = null;
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      tabEl.releasePointerCapture(pointerId);
+    }
+
+    tabEl.setPointerCapture(pointerId);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
   }
 
   function selectTab(tabId: string, paneId: string) {
@@ -711,9 +835,14 @@
               class:active={tab.id === pane.activeTabId}
               class:dirty={isDirty(tab)}
               class:focused={tab.id === pane.activeTabId && paneActive}
+              class:dragging={dragTabId === tab.id}
+              class:drag-over={dragOverTabId === tab.id && dragTabId !== tab.id}
+              data-tab-id={tab.id}
+              data-pane-id={pane.id}
               onclick={() => selectTab(tab.id, pane.id)}
               ondblclick={() => startEditingTab(tab.id)}
               onkeydown={(e) => e.key === 'Enter' && selectTab(tab.id, pane.id)}
+              onpointerdown={(e) => { if (e.button === 0) startTabDrag(e, tab.id, pane.id); }}
               role="tab"
               tabindex="0"
             >
@@ -799,6 +928,11 @@
     overflow: hidden;
   }
 
+  :global(body.tab-dragging) {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
   .app {
     display: flex;
     flex-direction: column;
@@ -837,6 +971,14 @@
     border-bottom: 2px solid transparent;
     font-size: 13px;
     white-space: nowrap;
+  }
+
+  .tab.dragging {
+    opacity: 0.4;
+  }
+
+  .tab.drag-over {
+    border-left: 2px solid #0366d6;
   }
 
   .tab:hover {
