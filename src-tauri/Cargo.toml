@@ -23,7 +23,7 @@ serde = { version = "=1.0.228", features = ["derive"] }
 log = "=0.4.29"
 tauri = { version = "=2.10.2", features = [] }
 tauri-plugin-log = "=2.8.0"
-tauri-plugin-fs = "=2.4.5"
+tauri-plugin-fs = "=2.5.0"
 tauri-plugin-dialog = "=2.6.0"
 tauri-plugin-updater = "=2.10.0"
 tauri-plugin-process = "=2.3.1"
