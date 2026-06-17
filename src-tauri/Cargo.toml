@@ -15,17 +15,17 @@ name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "=2.5.6", features = [] }
+tauri-build = { version = "=2.6.3", features = [] }
 
 [dependencies]
-serde_json = "=1.0.149"
+serde_json = "=1.0.150"
 serde = { version = "=1.0.228", features = ["derive"] }
-log = "=0.4.29"
-tauri = { version = "=2.10.2", features = [] }
+log = "=0.4.32"
+tauri = { version = "=2.11.3", features = [] }
 tauri-plugin-log = "=2.8.0"
-tauri-plugin-fs = "=2.4.5"
-tauri-plugin-dialog = "=2.6.0"
-tauri-plugin-updater = "=2.10.0"
+tauri-plugin-fs = "=2.5.1"
+tauri-plugin-dialog = "=2.7.1"
+tauri-plugin-updater = "=2.10.1"
 tauri-plugin-process = "=2.3.1"
 tauri-plugin-single-instance = "2"
-tauri-plugin-opener = "2.5.3"
+tauri-plugin-opener = "2.5.4"
