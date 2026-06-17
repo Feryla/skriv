@@ -348,6 +348,24 @@ describe('store', () => {
       expect(sessionContent).toBeDefined();
     });
 
+    it('writes session.json atomically via a temp file and rename', async () => {
+      const fs = await import('@tauri-apps/plugin-fs');
+      const sessionPath = '/mock/app/data/session.json';
+
+      await saveSession(makeSession({ nextTempNumber: 7 }));
+
+      // session.json must be produced by renaming a fully-written temp file
+      // into place, never by an in-place write that a crash could truncate
+      // (leaving unparseable JSON that discards the whole session on reload).
+      const directWrites = vi.mocked(fs.writeTextFile).mock.calls.filter(([p]) => p === sessionPath);
+      expect(directWrites).toEqual([]);
+      expect(vi.mocked(fs.rename).mock.calls.some(([, dest]) => dest === sessionPath)).toBe(true);
+
+      const saved = getMockFile(sessionPath);
+      expect(saved).toBeDefined();
+      expect(JSON.parse(saved!).nextTempNumber).toBe(7);
+    });
+
     it('should preserve tab metadata while stripping content', async () => {
       const state = makeSession({
         tabs: [

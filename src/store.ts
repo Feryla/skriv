@@ -1,4 +1,4 @@
-import { BaseDirectory, exists, mkdir, readTextFile, writeTextFile, remove } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, exists, mkdir, readTextFile, writeTextFile, remove, rename } from '@tauri-apps/plugin-fs';
 import { appDataDir, join } from '@tauri-apps/api/path';
 
 export interface Tab {
@@ -127,7 +127,12 @@ export async function saveSession(state: SessionState): Promise<void> {
       })),
     };
     
-    await writeTextFile(sessionPath, JSON.stringify(sessionToSave, null, 2));
+    // Write atomically: write to a temp file, then rename into place so a
+    // crash mid-write can never leave a truncated/corrupt session.json
+    // (which would parse-fail on next launch and discard every tab).
+    const tempSessionPath = sessionPath + '.tmp';
+    await writeTextFile(tempSessionPath, JSON.stringify(sessionToSave, null, 2));
+    await rename(tempSessionPath, sessionPath);
   } catch (e) {
     console.error('Failed to save session:', e);
   }

@@ -28,6 +28,15 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
     mockFileSystem.delete(path);
     return Promise.resolve();
   }),
+  rename: vi.fn((oldPath: string, newPath: string) => {
+    const content = mockFileSystem.get(oldPath);
+    if (content === undefined) {
+      return Promise.reject(new Error(`File not found: ${oldPath}`));
+    }
+    mockFileSystem.delete(oldPath);
+    mockFileSystem.set(newPath, content);
+    return Promise.resolve();
+  }),
   BaseDirectory: {
     AppData: 0,
   },
