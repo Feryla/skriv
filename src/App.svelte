@@ -44,6 +44,7 @@
   let updateDownloading = $state(false);
   let updateProgress = $state('');
   let updateError = $state('');
+  let saveError = $state('');
   let isDraggingOver = $state(false);
   let isDraggingHandle = $state(false);
 
@@ -292,9 +293,14 @@
 
     if (activeTab.path) {
       // Save to existing file
-      await writeTextFile(activeTab.path, activeTab.content);
-      activeTab.savedContent = activeTab.content;
-      state.tabs = [...state.tabs]; // trigger reactivity
+      try {
+        await writeTextFile(activeTab.path, activeTab.content);
+        activeTab.savedContent = activeTab.content;
+        state.tabs = [...state.tabs]; // trigger reactivity
+        saveError = '';
+      } catch (e) {
+        saveError = `Failed to save ${activeTab.name}: ${e}`;
+      }
     } else {
       // Save as new file
       await saveFileAs();
@@ -309,7 +315,12 @@
     });
 
     if (filePath) {
-      await writeTextFile(filePath, activeTab.content);
+      try {
+        await writeTextFile(filePath, activeTab.content);
+      } catch (e) {
+        saveError = `Failed to save ${filePath.split(/[/\\]/).pop() || 'file'}: ${e}`;
+        return;
+      }
 
       // Delete temp file if it exists
       if (activeTab.tempPath) {
@@ -324,6 +335,7 @@
         setEditorLanguage(currentEditor, activeTab.name);
       }
       state.tabs = [...state.tabs];
+      saveError = '';
     }
   }
 
@@ -815,6 +827,13 @@
         <button class="update-btn" onclick={installUpdate}>Update now</button>
         <button class="update-dismiss-btn" onclick={dismissUpdate}>Dismiss</button>
       {/if}
+    </div>
+  {/if}
+
+  {#if saveError}
+    <div class="update-bar" style="background: #d32f2f;">
+      <span>{saveError}</span>
+      <button class="update-dismiss-btn" onclick={() => saveError = ''}>Dismiss</button>
     </div>
   {/if}
 
