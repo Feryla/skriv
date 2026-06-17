@@ -11,6 +11,30 @@ import {
 } from './store';
 import { resetMockFileSystem, setMockFile, getMockFile, mockFileExists } from './test/setup';
 
+// Build a current-shape (panes-based) SessionState. All open tabs live in a
+// single pane whose active tab is `activeTabId`.
+function makeSession(opts: {
+  tabs?: Tab[];
+  activeTabId?: string | null;
+  nextTempNumber?: number;
+  darkMode?: boolean;
+  columnSelection?: boolean;
+  wordWrap?: boolean;
+} = {}): SessionState {
+  const tabs = opts.tabs ?? [];
+  const paneId = 'pane1';
+  return {
+    tabs,
+    panes: [{ id: paneId, tabIds: tabs.map((t) => t.id), activeTabId: opts.activeTabId ?? null }],
+    activePaneId: paneId,
+    splitRatio: 0.5,
+    nextTempNumber: opts.nextTempNumber ?? 1,
+    darkMode: opts.darkMode ?? true,
+    columnSelection: opts.columnSelection ?? false,
+    wordWrap: opts.wordWrap ?? false,
+  };
+}
+
 describe('store', () => {
   beforeEach(() => {
     resetMockFileSystem();
@@ -71,17 +95,20 @@ describe('store', () => {
     it('should return default session when no session file exists', async () => {
       const session = await loadSession();
 
-      expect(session).toEqual({
-        tabs: [],
-        activeTabId: null,
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      });
+      expect(session.tabs).toEqual([]);
+      expect(session.panes).toHaveLength(1);
+      expect(session.panes[0].tabIds).toEqual([]);
+      expect(session.panes[0].activeTabId).toBeNull();
+      expect(session.activePaneId).toBe(session.panes[0].id);
+      expect(session.splitRatio).toBe(0.5);
+      expect(session.nextTempNumber).toBe(1);
+      expect(session.darkMode).toBe(true);
+      expect(session.columnSelection).toBe(false);
+      expect(session.wordWrap).toBe(false);
     });
 
     it('should load session from file', async () => {
-      const savedSession: SessionState = {
+      const savedSession = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -96,8 +123,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 2,
         darkMode: false,
-        columnSelection: false,
-      };
+      });
 
       setMockFile('/mock/app/data/session.json', JSON.stringify(savedSession));
       setMockFile('/home/user/test.txt', 'file content here');
@@ -108,13 +134,48 @@ describe('store', () => {
       expect(session.tabs[0].name).toBe('test.txt');
       expect(session.tabs[0].content).toBe('file content here');
       expect(session.tabs[0].savedContent).toBe('file content here');
-      expect(session.activeTabId).toBe('tab1');
+      expect(session.panes[0].activeTabId).toBe('tab1');
       expect(session.nextTempNumber).toBe(2);
       expect(session.darkMode).toBe(false);
     });
 
+    it('should migrate a legacy session that has no panes', async () => {
+      // Sessions written before the split-pane model had a top-level
+      // activeTabId and no panes/activePaneId/splitRatio/wordWrap.
+      const legacy = {
+        tabs: [
+          {
+            id: 'tab1',
+            name: 'legacy.txt',
+            path: '/home/user/legacy.txt',
+            tempPath: null,
+            content: '',
+            savedContent: '',
+            cursorPos: 0,
+          },
+        ],
+        activeTabId: 'tab1',
+        nextTempNumber: 2,
+        darkMode: false,
+        columnSelection: false,
+      };
+
+      setMockFile('/mock/app/data/session.json', JSON.stringify(legacy));
+      setMockFile('/home/user/legacy.txt', 'legacy content');
+
+      const session = await loadSession();
+
+      expect(session.panes).toHaveLength(1);
+      expect(session.panes[0].tabIds).toEqual(['tab1']);
+      expect(session.panes[0].activeTabId).toBe('tab1');
+      expect(session.activePaneId).toBe(session.panes[0].id);
+      expect(session.splitRatio).toBe(0.5);
+      expect('activeTabId' in session).toBe(false);
+      expect(session.tabs[0].content).toBe('legacy content');
+    });
+
     it('should load content from temp files for unsaved tabs', async () => {
-      const savedSession: SessionState = {
+      const savedSession = makeSession({
         tabs: [
           {
             id: 'temp1',
@@ -128,9 +189,7 @@ describe('store', () => {
         ],
         activeTabId: 'temp1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       setMockFile('/mock/app/data/session.json', JSON.stringify(savedSession));
       setMockFile('/mock/app/data/temp/new 1.txt', 'unsaved content');
@@ -142,7 +201,7 @@ describe('store', () => {
     });
 
     it('should handle multiple tabs with mixed file types', async () => {
-      const savedSession: SessionState = {
+      const savedSession = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -174,9 +233,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab2',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       setMockFile('/mock/app/data/session.json', JSON.stringify(savedSession));
       setMockFile('/home/user/saved.ts', 'typescript code');
@@ -192,7 +249,7 @@ describe('store', () => {
     });
 
     it('should handle missing files gracefully', async () => {
-      const savedSession: SessionState = {
+      const savedSession = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -205,10 +262,7 @@ describe('store', () => {
           },
         ],
         activeTabId: 'tab1',
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       setMockFile('/mock/app/data/session.json', JSON.stringify(savedSession));
       // Note: /home/user/missing.txt is NOT set in mock
@@ -224,19 +278,20 @@ describe('store', () => {
 
       const session = await loadSession();
 
-      expect(session).toEqual({
-        tabs: [],
-        activeTabId: null,
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      });
+      expect(session.tabs).toEqual([]);
+      expect(session.panes).toHaveLength(1);
+      expect(session.panes[0].tabIds).toEqual([]);
+      expect(session.panes[0].activeTabId).toBeNull();
+      expect(session.activePaneId).toBe(session.panes[0].id);
+      expect(session.nextTempNumber).toBe(1);
+      expect(session.darkMode).toBe(true);
+      expect(session.columnSelection).toBe(false);
     });
   });
 
   describe('saveSession', () => {
     it('should save session to file', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -249,10 +304,7 @@ describe('store', () => {
           },
         ],
         activeTabId: 'tab1',
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
 
@@ -264,11 +316,12 @@ describe('store', () => {
       expect(parsed.tabs[0].name).toBe('test.txt');
       expect(parsed.tabs[0].content).toBe(''); // Content stripped
       expect(parsed.tabs[0].savedContent).toBe(''); // SavedContent stripped
-      expect(parsed.activeTabId).toBe('tab1');
+      expect(parsed.panes[0].activeTabId).toBe('tab1');
+      expect(parsed.activePaneId).toBe('pane1');
     });
 
     it('should save temp file contents to disk', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'temp1',
@@ -282,9 +335,7 @@ describe('store', () => {
         ],
         activeTabId: 'temp1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
 
@@ -298,7 +349,7 @@ describe('store', () => {
     });
 
     it('should preserve tab metadata while stripping content', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -313,8 +364,7 @@ describe('store', () => {
         activeTabId: 'tab1',
         nextTempNumber: 3,
         darkMode: false,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
 
@@ -331,7 +381,7 @@ describe('store', () => {
   describe('session round-trip (save then load)', () => {
     it('should restore session state after save and load', async () => {
       // Create initial state
-      const originalState: SessionState = {
+      const originalState = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -355,8 +405,7 @@ describe('store', () => {
         activeTabId: 'tab2',
         nextTempNumber: 2,
         darkMode: false,
-        columnSelection: false,
-      };
+      });
 
       // Save the session
       await saveSession(originalState);
@@ -369,7 +418,7 @@ describe('store', () => {
 
       // Verify state was restored
       expect(loadedState.tabs).toHaveLength(2);
-      expect(loadedState.activeTabId).toBe('tab2');
+      expect(loadedState.panes[0].activeTabId).toBe('tab2');
       expect(loadedState.nextTempNumber).toBe(2);
       expect(loadedState.darkMode).toBe(false);
 
@@ -383,7 +432,7 @@ describe('store', () => {
     });
 
     it('should preserve cursor positions across sessions', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -397,9 +446,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       const loaded = await loadSession();
@@ -407,20 +454,44 @@ describe('store', () => {
       expect(loaded.tabs[0].cursorPos).toBe(123);
     });
 
+    it('should preserve pane layout and word-wrap across sessions', async () => {
+      const state = makeSession({
+        tabs: [
+          {
+            id: 'tab1',
+            name: 'new 1.txt',
+            path: null,
+            tempPath: '/mock/app/data/temp/new 1.txt',
+            content: 'content',
+            savedContent: '',
+            cursorPos: 0,
+          },
+        ],
+        activeTabId: 'tab1',
+        nextTempNumber: 2,
+        wordWrap: true,
+        columnSelection: true,
+      });
+
+      await saveSession(state);
+      const loaded = await loadSession();
+
+      expect(loaded.panes).toHaveLength(1);
+      expect(loaded.panes[0].tabIds).toEqual(['tab1']);
+      expect(loaded.panes[0].activeTabId).toBe('tab1');
+      expect(loaded.activePaneId).toBe('pane1');
+      expect(loaded.wordWrap).toBe(true);
+      expect(loaded.columnSelection).toBe(true);
+    });
+
     it('should handle empty session round-trip', async () => {
-      const emptyState: SessionState = {
-        tabs: [],
-        activeTabId: null,
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      };
+      const emptyState = makeSession({ nextTempNumber: 1 });
 
       await saveSession(emptyState);
       const loaded = await loadSession();
 
       expect(loaded.tabs).toHaveLength(0);
-      expect(loaded.activeTabId).toBeNull();
+      expect(loaded.panes[0].activeTabId).toBeNull();
       expect(loaded.nextTempNumber).toBe(1);
     });
 
@@ -438,19 +509,14 @@ describe('store', () => {
         });
       }
 
-      const state: SessionState = {
-        tabs,
-        activeTabId: 'tab5',
-        nextTempNumber: 11,
-        darkMode: true,
-        columnSelection: false,
-      };
+      const state = makeSession({ tabs, activeTabId: 'tab5', nextTempNumber: 11 });
 
       await saveSession(state);
       const loaded = await loadSession();
 
       expect(loaded.tabs).toHaveLength(10);
-      expect(loaded.activeTabId).toBe('tab5');
+      expect(loaded.panes[0].activeTabId).toBe('tab5');
+      expect(loaded.panes[0].tabIds).toHaveLength(10);
       expect(loaded.nextTempNumber).toBe(11);
 
       for (let i = 0; i < 10; i++) {
@@ -463,7 +529,7 @@ describe('store', () => {
   describe('auto-save scenarios', () => {
     it('should preserve unsaved changes in temp files', async () => {
       // Simulate user typing in an unsaved file
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -477,9 +543,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       // Auto-save triggers
       await saveSession(state);
@@ -493,7 +557,7 @@ describe('store', () => {
 
     it('should preserve unsaved changes in modified saved files', async () => {
       // Simulate user modifying a saved file
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -506,10 +570,7 @@ describe('store', () => {
           },
         ],
         activeTabId: 'tab1',
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       // Save session (but not the file itself)
       await saveSession(state);
@@ -529,7 +590,7 @@ describe('store', () => {
 
   describe('file deletion and missing file handling', () => {
     it('should handle deleted temp file on reload', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -543,9 +604,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
 
@@ -565,7 +624,7 @@ describe('store', () => {
     });
 
     it('should handle deleted real file on reload', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -578,10 +637,7 @@ describe('store', () => {
           },
         ],
         activeTabId: 'tab1',
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       setMockFile('/mock/app/data/session.json', JSON.stringify(state));
       // Note: /home/user/deleted.txt is NOT set
@@ -595,13 +651,7 @@ describe('store', () => {
 
   describe('dark mode persistence', () => {
     it('should persist dark mode preference', async () => {
-      const state: SessionState = {
-        tabs: [],
-        activeTabId: null,
-        nextTempNumber: 1,
-        darkMode: false,
-        columnSelection: false,
-      };
+      const state = makeSession({ darkMode: false });
 
       await saveSession(state);
       const loaded = await loadSession();
@@ -618,7 +668,7 @@ describe('store', () => {
   describe('edge cases and potential bugs', () => {
     it('should handle unicode content in temp files', async () => {
       const unicodeContent = 'Hello 世界! 🎉 émojis and ñ special chars';
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -632,9 +682,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       const loaded = await loadSession();
@@ -644,7 +692,7 @@ describe('store', () => {
 
     it('should handle very large content', async () => {
       const largeContent = 'x'.repeat(100000);
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -658,9 +706,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       const loaded = await loadSession();
@@ -670,7 +716,7 @@ describe('store', () => {
     });
 
     it('should handle tabs with special characters in names', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -684,9 +730,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       const loaded = await loadSession();
@@ -695,7 +739,7 @@ describe('store', () => {
     });
 
     it('should handle empty content correctly', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -709,9 +753,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       const loaded = await loadSession();
@@ -721,7 +763,7 @@ describe('store', () => {
 
     it('should handle JSON-like content in files', async () => {
       const jsonContent = '{"key": "value", "nested": {"array": [1, 2, 3]}}';
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -735,9 +777,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       const loaded = await loadSession();
@@ -746,7 +786,7 @@ describe('store', () => {
     });
 
     it('should preserve tab order across sessions', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           { id: 'a', name: 'first.txt', path: null, tempPath: '/mock/app/data/temp/new 1.txt', content: '1', savedContent: '', cursorPos: 0 },
           { id: 'b', name: 'second.txt', path: null, tempPath: '/mock/app/data/temp/new 2.txt', content: '2', savedContent: '', cursorPos: 0 },
@@ -754,9 +794,7 @@ describe('store', () => {
         ],
         activeTabId: 'b',
         nextTempNumber: 4,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       const loaded = await loadSession();
@@ -768,7 +806,7 @@ describe('store', () => {
 
     it('should handle newlines in content', async () => {
       const contentWithNewlines = 'line1\nline2\r\nline3\rline4';
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -782,9 +820,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       const loaded = await loadSession();
@@ -794,7 +830,7 @@ describe('store', () => {
 
     it('should handle content with quotes and backslashes', async () => {
       const trickyContent = 'path: "C:\\Users\\test\\file.txt" with \'quotes\'';
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -808,9 +844,7 @@ describe('store', () => {
         ],
         activeTabId: 'tab1',
         nextTempNumber: 2,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       const loaded = await loadSession();
@@ -821,7 +855,7 @@ describe('store', () => {
 
   describe('dotfiles and special filenames', () => {
     it('should load content from .env files correctly', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -834,10 +868,7 @@ describe('store', () => {
           },
         ],
         activeTabId: 'tab1',
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       // Save session (content gets stripped)
       await saveSession(state);
@@ -859,7 +890,7 @@ describe('store', () => {
     });
 
     it('should handle files with leading dots in names', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -872,10 +903,7 @@ describe('store', () => {
           },
         ],
         activeTabId: 'tab1',
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       setMockFile('/home/user/project/.gitignore', 'node_modules/');
@@ -885,7 +913,7 @@ describe('store', () => {
     });
 
     it('should handle paths with special characters', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -898,10 +926,7 @@ describe('store', () => {
           },
         ],
         activeTabId: 'tab1',
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       await saveSession(state);
       setMockFile('/home/user/my project/src/file.test.ts', 'test content');
@@ -917,7 +942,7 @@ describe('store', () => {
      * The tab remains but content is empty, and a warning is logged.
      */
     it('should show empty content and log warning when file cannot be read', async () => {
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -930,10 +955,7 @@ describe('store', () => {
           },
         ],
         activeTabId: 'tab1',
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       // Save session
       setMockFile('/mock/app/data/session.json', JSON.stringify(state));
@@ -965,7 +987,7 @@ describe('store', () => {
      */
     it('LOSES unsaved modifications to saved files on restart', async () => {
       // User opens a file
-      const state: SessionState = {
+      const state = makeSession({
         tabs: [
           {
             id: 'tab1',
@@ -978,10 +1000,7 @@ describe('store', () => {
           },
         ],
         activeTabId: 'tab1',
-        nextTempNumber: 1,
-        darkMode: true,
-        columnSelection: false,
-      };
+      });
 
       // App auto-saves session on close
       await saveSession(state);
