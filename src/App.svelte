@@ -20,7 +20,7 @@
   } from './store';
   import Editor from './Editor.svelte';
   import TabSwitcher from './TabSwitcher.svelte';
-  import { loadMonaco, formatDocument, setEditorLanguage, getLanguageDisplayName } from './editor';
+  import { loadMonaco, formatDocument, setEditorLanguage, getLanguageDisplayName, disposeTabModel } from './editor';
 
   const defaultPaneId = generateTabId();
   let state: SessionState = $state({
@@ -365,6 +365,7 @@
     const index = pane.tabIds.indexOf(tabId);
     pane.tabIds = pane.tabIds.filter(id => id !== tabId);
     state.tabs = state.tabs.filter((t) => t.id !== tabId);
+    disposeTabModel(tabId);
 
     // Select another tab within this pane
     if (pane.activeTabId === tabId) {
@@ -565,6 +566,11 @@
 
   function isDirty(tab: Tab): boolean {
     return tab.content !== tab.savedContent;
+  }
+
+  function updateTabContent(tabId: string, content: string) {
+    const tab = state.tabs.find((t) => t.id === tabId);
+    if (tab) tab.content = content;
   }
 
   async function checkForUpdates() {
@@ -907,17 +913,14 @@
 
         <div class="editor-container">
           {#if loaded && paneActiveTab}
-            {#key paneActiveTab.id}
-              <Editor
-                content={paneActiveTab.content}
-                filename={paneActiveTab.name}
-                darkMode={state.darkMode}
-                columnSelection={state.columnSelection}
-                wordWrap={state.wordWrap}
-                onUpdate={(content) => { if (paneActiveTab) paneActiveTab.content = content; }}
-                onEditorReady={(editor) => handleEditorReady(editor, pane.id)}
-              />
-            {/key}
+            <Editor
+              tab={paneActiveTab}
+              darkMode={state.darkMode}
+              columnSelection={state.columnSelection}
+              wordWrap={state.wordWrap}
+              onUpdate={updateTabContent}
+              onEditorReady={(editor) => handleEditorReady(editor, pane.id)}
+            />
           {/if}
         </div>
       </div>

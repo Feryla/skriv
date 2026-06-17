@@ -148,20 +148,60 @@ export function setupThemes() {
   });
 }
 
-export function createEditor(
-  container: HTMLElement,
+// One Monaco model per tab so that undo history (and, via saved view state,
+// cursor/scroll/selection) survives switching away from a tab and back.
+// Models outlive the per-pane editor: created lazily, disposed on tab close.
+interface TabModelEntry {
+  model: Monaco.editor.ITextModel;
+  changeSub: Monaco.IDisposable;
+}
+const tabModels = new Map<string, TabModelEntry>();
+const tabViewStates = new Map<string, Monaco.editor.ICodeEditorViewState>();
+
+export function getTabModel(
+  tabId: string,
   content: string,
   filename: string,
+  onChange: (content: string) => void
+): Monaco.editor.ITextModel {
+  let entry = tabModels.get(tabId);
+  if (!entry) {
+    const model = _monaco!.editor.createModel(content, getLanguageFromFilename(filename));
+    const changeSub = model.onDidChangeContent(() => onChange(model.getValue()));
+    entry = { model, changeSub };
+    tabModels.set(tabId, entry);
+  }
+  return entry.model;
+}
+
+export function disposeTabModel(tabId: string): void {
+  const entry = tabModels.get(tabId);
+  if (entry) {
+    entry.changeSub.dispose();
+    entry.model.dispose();
+    tabModels.delete(tabId);
+  }
+  tabViewStates.delete(tabId);
+}
+
+export function saveTabViewState(tabId: string, editor: Monaco.editor.IStandaloneCodeEditor): void {
+  const viewState = editor.saveViewState();
+  if (viewState) tabViewStates.set(tabId, viewState);
+}
+
+export function restoreTabViewState(tabId: string, editor: Monaco.editor.IStandaloneCodeEditor): void {
+  const viewState = tabViewStates.get(tabId);
+  if (viewState) editor.restoreViewState(viewState);
+}
+
+export function createEditor(
+  container: HTMLElement,
   darkMode: boolean,
-  onChange: (content: string) => void,
   columnSelection: boolean = false,
   wordWrap: boolean = false
 ): Monaco.editor.IStandaloneCodeEditor {
-  const language = getLanguageFromFilename(filename);
-
+  // Created without a model; the active tab's model is attached via setModel.
   const editor = _monaco!.editor.create(container, {
-    value: content,
-    language,
     theme: darkMode ? 'simple-dark' : 'simple-light',
     automaticLayout: true,
     minimap: { enabled: false },
@@ -181,11 +221,6 @@ export function createEditor(
       autoFindInSelection: 'multiline',
       seedSearchStringFromSelection: 'selection',
     },
-  });
-
-  // Listen for content changes
-  editor.onDidChangeModelContent(() => {
-    onChange(editor.getValue());
   });
 
   // Register "Install CLI" command in the command palette

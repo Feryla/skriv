@@ -1,43 +1,67 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type * as Monaco from 'monaco-editor';
-  import { loadMonaco, createEditor, setupThemes, setEditorTheme } from './editor';
+  import type { Tab } from './store';
+  import {
+    loadMonaco,
+    createEditor,
+    setupThemes,
+    setEditorTheme,
+    getTabModel,
+    saveTabViewState,
+    restoreTabViewState,
+  } from './editor';
 
   let {
-    content,
-    filename,
+    tab,
     darkMode,
     columnSelection,
     wordWrap,
     onUpdate,
     onEditorReady,
   }: {
-    content: string;
-    filename: string;
+    tab: Tab;
     darkMode: boolean;
     columnSelection: boolean;
     wordWrap: boolean;
-    onUpdate: (content: string) => void;
+    onUpdate: (tabId: string, content: string) => void;
     onEditorReady?: (editor: Monaco.editor.IStandaloneCodeEditor) => void;
   } = $props();
 
   let container: HTMLDivElement;
-  let editor: Monaco.editor.IStandaloneCodeEditor | null = $state(null);
+  let editor: Monaco.editor.IStandaloneCodeEditor | null = null;
+  let currentTabId: string | null = null;
+
+  // Attach the given tab's model, preserving the outgoing tab's view state.
+  function showTab(t: Tab) {
+    if (!editor || currentTabId === t.id) return;
+    if (currentTabId) saveTabViewState(currentTabId, editor);
+    const model = getTabModel(t.id, t.content, t.name, (content) => onUpdate(t.id, content));
+    editor.setModel(model);
+    restoreTabViewState(t.id, editor);
+    currentTabId = t.id;
+    editor.focus();
+  }
 
   onMount(async () => {
     await loadMonaco();
     setupThemes();
-    editor = createEditor(container, content, filename, darkMode, onUpdate, columnSelection, wordWrap);
-    
+    editor = createEditor(container, darkMode, columnSelection, wordWrap);
+    showTab(tab);
+
     if (onEditorReady) {
       onEditorReady(editor);
     }
+  });
 
-    // Focus editor
-    editor.focus();
+  // Swap models when the active tab changes (no editor recreation).
+  $effect(() => {
+    const t = tab;
+    if (editor && t) showTab(t);
   });
 
   onDestroy(() => {
+    if (editor && currentTabId) saveTabViewState(currentTabId, editor);
     editor?.dispose();
   });
 
