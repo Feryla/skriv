@@ -35,6 +35,7 @@
     "dialog:default",
     "dialog:allow-open",
     "dialog:allow-save",
+    "dialog:allow-ask",
     "core:window:allow-set-title",
     "updater:default",
     "process:allow-restart",

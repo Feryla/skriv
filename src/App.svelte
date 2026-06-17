@@ -3,7 +3,7 @@
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
-  import { open, save } from '@tauri-apps/plugin-dialog';
+  import { open, save, ask } from '@tauri-apps/plugin-dialog';
   import { readTextFile, writeTextFile, rename } from '@tauri-apps/plugin-fs';
   import { check } from '@tauri-apps/plugin-updater';
   import { relaunch } from '@tauri-apps/plugin-process';
@@ -342,6 +342,16 @@
   async function closeTab(tabId: string) {
     const tab = state.tabs.find((t) => t.id === tabId);
     if (!tab) return;
+
+    // Confirm before discarding unsaved changes. For an unsaved tab the temp
+    // file is the only copy, so closing it deletes the user's work for good.
+    if (isDirty(tab)) {
+      const discard = await ask(
+        `"${tab.name}" has unsaved changes. Close without saving?`,
+        { title: 'Unsaved changes', kind: 'warning', okLabel: 'Discard', cancelLabel: 'Cancel' },
+      );
+      if (!discard) return;
+    }
 
     // Delete temp file
     if (tab.tempPath) {
