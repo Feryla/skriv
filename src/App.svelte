@@ -415,6 +415,9 @@
 
   function startTabDrag(e: PointerEvent, tabId: string, paneId: string) {
     if (editingTabId === tabId) return;
+    // A press on the close button must not start a drag: capturing the pointer
+    // here would steal the button's click, so closeTab would never fire.
+    if ((e.target as HTMLElement).closest('.close-btn')) return;
     dragStartX = e.clientX;
     dragTabId = null;
     dragPaneId = paneId;
