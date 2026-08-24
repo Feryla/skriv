@@ -18,13 +18,13 @@
     "sbom:rust": "cd src-tauri && cargo cyclonedx --format json"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "7.2.0",
+    "@sveltejs/vite-plugin-svelte": "7.3.0",
     "@tauri-apps/cli": "2.11.4",
-    "@vitest/coverage-v8": "^4.1.10",
-    "esbuild": "^0.28.1",
-    "svelte": "5.56.4",
+    "@vitest/coverage-v8": "^4.1.11",
+    "esbuild": "^0.28.2",
+    "svelte": "5.56.10",
     "typescript": "7.0.2",
-    "vite": "8.1.4",
+    "vite": "8.2.2",
     "vite-plugin-monaco-editor": "1.1.0",
     "vitest": "^4.1.9"
   },
